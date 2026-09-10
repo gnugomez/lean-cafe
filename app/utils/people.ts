@@ -5,14 +5,6 @@ export const AVATAR_PALETTE = [
   '#6741d9', '#0c8599', '#d6336c', '#e8590c',
 ]
 
-export function genId(length = 12): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  let out = ''
-  for (const b of bytes) out += chars[b % chars.length]
-  return out
-}
-
 export function colorFor(id: string): string {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
@@ -24,10 +16,6 @@ export function initialsOf(name: string): string {
   if (!parts.length) return '?'
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
-}
-
-export function normalizeCode(input: string): string {
-  return input.toUpperCase().replace(/[^0-9A-Z]/g, '')
 }
 
 /**
@@ -47,16 +35,4 @@ export function fakeNameFor(seed: string, length: number): string {
     out += set[(h >>> 16) % set.length]
   }
   return out[0]!.toUpperCase() + out.slice(1)
-}
-
-export function getStored(key: string): string | null {
-  try { return window.localStorage.getItem(key) } catch { return null }
-}
-
-export function setStored(key: string, value: string) {
-  try { window.localStorage.setItem(key, value) } catch { /* private mode etc. */ }
-}
-
-export function removeStored(key: string) {
-  try { window.localStorage.removeItem(key) } catch { /* ignore */ }
 }
