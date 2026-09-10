@@ -40,14 +40,18 @@ function submit() {
       <div class="hero-logo">☕</div>
       <h1>Pick a display name</h1>
       <p class="tagline">Everyone in this room will see it on your cards.</p>
-      <input
-        ref="inputEl"
-        v-model="draft"
-        class="input name-input"
-        placeholder="e.g. Ada"
-        maxlength="24"
-      >
-      <button type="submit" class="btn btn-primary" :disabled="!draft.trim()">Join the board</button>
+      <div class="name-form">
+        <input
+          ref="inputEl"
+          v-model="draft"
+          class="input name-input"
+          placeholder="e.g. Ada"
+          maxlength="24"
+        >
+        <button type="submit" class="btn btn-primary" :disabled="!draft.trim()">
+          Start <Icon name="lucide:arrow-right" />
+        </button>
+      </div>
     </form>
   </div>
 </template>
