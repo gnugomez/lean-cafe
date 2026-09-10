@@ -51,9 +51,24 @@ export function useCollabEditor(opts: CollabEditorOptions) {
         StarterKit.configure({
           ...(opts.document ? { document: false } : {}),
           undoRedo: false,
-          link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
+          link: {
+            // false = never open through the click-handler plugin. Read-only
+            // editors still open links natively (contenteditable=false), and
+            // while editing a click just places the cursor — which is what
+            // 'whenNotEditable' promises, but it maps to openOnClick: true
+            // upstream and opens links mid-edit via window.open.
+            openOnClick: false,
+            autolink: true,
+            linkOnPaste: true,
+            // typing/pasting [text](url), with the upstream href validation
+            markdownLinks: true,
+            // remote peers can sync marks with non-string hrefs, which the
+            // default validator would throw on (breaking the card's render);
+            // treat them as disallowed so renderHTML strips the href instead
+            isAllowedUri: (url, ctx) =>
+              (url == null || typeof url === 'string') && ctx.defaultValidate(url),
+          },
         }),
-        MarkdownLink,
         SlashCommands,
         Placeholder.configure(opts.placeholder),
         TaskList,
