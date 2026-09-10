@@ -26,10 +26,14 @@ function cursorColor(id: string) {
 
 const showNameEdit = ref(false)
 const copied = ref(false)
-function copyLink() {
-  navigator.clipboard?.writeText(`${location.origin}/room/${props.code}`)
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 1500)
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(`${location.origin}/room/${props.code}`)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 1500)
+  } catch {
+    // clipboard unavailable (insecure context) or write denied — don't claim "Copied!"
+  }
 }
 
 const addingColumn = ref(false)
