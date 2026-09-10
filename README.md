@@ -26,7 +26,7 @@ npm run build
 node .output/server/index.mjs
 ```
 
-Needs Node `^22.19.0 || ^24.11.0` (see `engines`). A multi-stage `Dockerfile` is included; the container listens on port 3000. In Coolify pick the **Dockerfile** build pack (nixpacks pins a Node that's too old). Set `NUXT_ROOM_SECRET`, and make sure WebSockets can reach `/signal` (Coolify's proxy allows this by default).
+Needs Node `^22.19.0 || ^24.11.0` (see `engines`). A multi-stage `Dockerfile` is included; the container listens on port 3000. Set `NUXT_ROOM_SECRET`, and make sure your proxy passes WebSocket connections through to `/signal`.
 
 ### Settings
 
