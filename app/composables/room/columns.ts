@@ -2,6 +2,15 @@ import * as Y from 'yjs'
 import type { ComputedRef, Ref } from 'vue'
 import type { ColumnItem } from './types'
 
+/** min fits a 220px note plus column padding; max is a generous bound that
+ * still keeps a hostile peer from blowing up everyone's layout */
+export const COLUMN_MIN_WIDTH = 300
+export const COLUMN_MAX_WIDTH = 2400
+
+export function clampColumnWidth(width: number) {
+  return Math.round(Math.min(COLUMN_MAX_WIDTH, Math.max(COLUMN_MIN_WIDTH, width)))
+}
+
 /** a header fragment is bindable once its first node is the title heading —
  * the column header editor's schema is 'heading block*', so binding anything
  * else would throw at Editor construction */
@@ -83,7 +92,7 @@ export function createRoomColumns(opts: {
 
   function resizeColumn(id: string, width: number) {
     if (!isOwner.value) return
-    const w = Math.round(Math.min(900, Math.max(300, width)))
+    const w = clampColumnWidth(width)
     const col = columnsMap.get(id)
     if (col && col.get('width') !== w) col.set('width', w)
   }

@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import type { CardItem, ColumnItem, RoundResult, TimerState, VotingState } from './types'
-import { isHeaderDoc } from './columns'
+import { COLUMN_MIN_WIDTH, clampColumnWidth, isHeaderDoc } from './columns'
 
 export function createRoomDoc() {
   const doc = new Y.Doc()
@@ -40,7 +40,7 @@ export function createRoomDoc() {
         title: str(m.get('title')),
         order: num(m.get('order'), 0),
         // same bounds resizeColumn enforces, against out-of-range peer values
-        width: Math.min(900, Math.max(300, num(m.get('width'), 300))),
+        width: clampColumnWidth(num(m.get('width'), COLUMN_MIN_WIDTH)),
         hasDesc: isHeaderDoc(m.get('desc')),
       }))
     cards.value = [...cardsMap.values()]
