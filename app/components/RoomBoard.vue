@@ -8,7 +8,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { store.destroy() })
 
-const { columns, name, isOwner, hideAuthors, pointers } = store
+const { columns, name, isOwner, hideAuthors } = store
 const sortedColumns = computed(() => [...columns.value].sort((a, b) => a.order - b.order))
 
 // live cursors: broadcast in board-content coordinates (scroll-independent)
@@ -18,10 +18,6 @@ function onBoardPointer(e: PointerEvent) {
   if (!el) return
   const r = el.getBoundingClientRect()
   store.setPointer(e.clientX - r.left + el.scrollLeft, e.clientY - r.top + el.scrollTop)
-}
-// neutral cursors while authors are hidden, so colors can't be matched to author dots
-function cursorColor(id: string) {
-  return hideAuthors.value ? '#9a9aa4' : colorFor(id)
 }
 
 const showNameEdit = ref(false)
@@ -34,14 +30,6 @@ async function copyLink() {
   } catch {
     // clipboard unavailable (insecure context) or write denied — don't claim "Copied!"
   }
-}
-
-const addingColumn = ref(false)
-const columnDraft = ref('')
-function submitColumn() {
-  if (columnDraft.value.trim()) store.addColumn(columnDraft.value)
-  columnDraft.value = ''
-  addingColumn.value = false
 }
 </script>
 
@@ -75,36 +63,9 @@ function submitColumn() {
       @pointermove="onBoardPointer"
       @pointerleave="store.setPointer(null)"
     >
-      <div
-        v-for="p in pointers"
-        :key="p.id"
-        class="remote-cursor"
-        :style="{ left: `${p.x}px`, top: `${p.y}px` }"
-      >
-        <Icon name="lucide:mouse-pointer-2" :style="{ color: cursorColor(p.id) }" />
-        <span class="cursor-name" :style="{ background: cursorColor(p.id) }">
-          <!-- while authors are hidden, the real name never reaches the DOM -->
-          <span v-if="hideAuthors" class="author-hidden">{{ fakeNameFor(p.id, p.name.length) }}</span>
-          <template v-else>{{ p.name }}</template>
-        </span>
-      </div>
+      <RemoteCursors />
       <BoardColumn v-for="col in sortedColumns" :key="col.id" :column="col" />
-      <div v-if="isOwner" class="add-column">
-        <form v-if="addingColumn" class="panel add-column-form" @submit.prevent="submitColumn">
-          <input
-            :ref="el => (el as HTMLInputElement)?.focus()"
-            v-model="columnDraft"
-            class="input"
-            placeholder="Column title"
-            maxlength="40"
-            @keydown.esc="addingColumn = false"
-          >
-          <button class="btn btn-primary btn-sm" type="submit">Add</button>
-        </form>
-        <button v-else class="btn add-column-btn" @click="addingColumn = true; columnDraft = ''">
-          <Icon name="lucide:plus" /> Add column
-        </button>
-      </div>
+      <AddColumn v-if="isOwner" />
     </main>
 
     <NameDialog
