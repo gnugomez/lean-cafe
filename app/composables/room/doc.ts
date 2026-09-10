@@ -25,42 +25,75 @@ export function createRoomDoc() {
   const ownerId = ref<string | null>(null)
   const ownerUid = ref<string | null>(null)
 
+  // Shared state is peer-writable, so rebuild() must never trust shapes:
+  // a crafted value (non-Y.Map entry, NaN position, junk meta) would otherwise
+  // throw here on every update and freeze the board for every peer.
+  const num = (v: unknown, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? v : fallback
+  const str = (v: unknown, fallback = '') => typeof v === 'string' ? v : fallback
+
   function rebuild() {
-    columns.value = [...columnsMap.values()].map(m => ({
-      id: m.get('id'),
-      title: m.get('title'),
-      order: m.get('order'),
-      width: m.get('width') || 300,
-      hasDesc: isHeaderDoc(m.get('desc')),
-    }))
-    cards.value = [...cardsMap.values()].map((m, idx) => ({
-      id: m.get('id'),
-      columnId: m.get('columnId'),
-      text: m.get('text'),
-      authorId: m.get('authorId'),
-      authorName: m.get('authorName'),
-      order: m.get('order'),
-      createdAt: m.get('createdAt'),
-      // legacy cards (pre-whiteboard) get a deterministic cascade position
-      x: m.get('x') ?? 14 + (idx % 2) * 36,
-      y: m.get('y') ?? 14 + ((m.get('order') || idx) * 44) % 440,
-      z: m.get('z') ?? idx + 1,
-    }))
+    columns.value = [...columnsMap.values()]
+      .filter((m): m is Y.Map<any> => m instanceof Y.Map)
+      .map(m => ({
+        id: str(m.get('id')),
+        title: str(m.get('title')),
+        order: num(m.get('order'), 0),
+        // same bounds resizeColumn enforces, against out-of-range peer values
+        width: Math.min(900, Math.max(300, num(m.get('width'), 300))),
+        hasDesc: isHeaderDoc(m.get('desc')),
+      }))
+    cards.value = [...cardsMap.values()]
+      .filter((m): m is Y.Map<any> => m instanceof Y.Map)
+      .map((m, idx) => ({
+        id: str(m.get('id')),
+        columnId: str(m.get('columnId')),
+        text: str(m.get('text')),
+        authorId: str(m.get('authorId')),
+        authorName: str(m.get('authorName')),
+        order: num(m.get('order'), idx),
+        createdAt: num(m.get('createdAt'), 0),
+        // legacy cards (pre-whiteboard) get a deterministic cascade position
+        x: num(m.get('x'), 14 + (idx % 2) * 36),
+        y: num(m.get('y'), 14 + (num(m.get('order'), idx) * 44) % 440),
+        z: num(m.get('z'), idx + 1),
+      }))
     const v: Record<string, Record<string, number>> = {}
-    votesMap.forEach((val, key) => { v[key] = val || {} })
+    votesMap.forEach((val, key) => {
+      const clean: Record<string, number> = {}
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        for (const [cardId, n] of Object.entries(val)) {
+          if (typeof n === 'number' && Number.isFinite(n) && n > 0) clean[cardId] = n
+        }
+      }
+      v[key] = clean
+    })
     votes.value = v
     const h: Record<string, RoundResult> = {}
-    historyMap.forEach((val, key) => { h[key] = val })
+    historyMap.forEach((val, key) => {
+      if (val && typeof val === 'object' && Array.isArray(val.results)) h[key] = val
+    })
     history.value = h
     const p: Record<string, { name: string }> = {}
-    peopleMap.forEach((val, key) => { p[key] = val })
+    peopleMap.forEach((val, key) => { p[key] = { name: str(val?.name) } })
     people.value = p
-    timer.value = (metaMap.get('timer') as TimerState | null) ?? null
-    voting.value = (metaMap.get('voting') as VotingState | null) ?? { phase: 'idle', votesPerUser: 3 }
+    const rawTimer = metaMap.get('timer') as Partial<TimerState> | null | undefined
+    timer.value = rawTimer && Number.isFinite(rawTimer.endsAt) && Number.isFinite(rawTimer.total) && rawTimer.total! > 0
+      ? { endsAt: rawTimer.endsAt!, total: rawTimer.total! }
+      : null
+    const rawVoting = metaMap.get('voting') as Partial<VotingState> | null | undefined
+    const phase = rawVoting && (['idle', 'voting', 'results'] as const).find(ph => ph === rawVoting.phase)
+    voting.value = phase
+      ? {
+          phase,
+          votesPerUser: Math.max(1, num(rawVoting!.votesPerUser, 3)),
+          round: typeof rawVoting!.round === 'string' ? rawVoting!.round : undefined,
+        }
+      : { phase: 'idle', votesPerUser: 3 }
     hideAuthors.value = metaMap.get('hideAuthors') === true
-    sharedViewRound.value = (metaMap.get('displayRound') as string | undefined) ?? null
-    ownerId.value = (metaMap.get('ownerToken') as string | undefined) ?? null
-    ownerUid.value = (metaMap.get('ownerUid') as string | undefined) ?? null
+    sharedViewRound.value = str(metaMap.get('displayRound')) || null
+    ownerId.value = str(metaMap.get('ownerToken')) || null
+    ownerUid.value = str(metaMap.get('ownerUid')) || null
   }
   doc.on('update', rebuild)
   rebuild()
