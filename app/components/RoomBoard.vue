@@ -8,8 +8,21 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { store.destroy() })
 
-const { columns, name, isOwner, hideAuthors } = store
+const { columns, name, isOwner, hideAuthors, pointers } = store
 const sortedColumns = computed(() => [...columns.value].sort((a, b) => a.order - b.order))
+
+// live cursors: broadcast in board-content coordinates (scroll-independent)
+const boardEl = ref<HTMLElement | null>(null)
+function onBoardPointer(e: PointerEvent) {
+  const el = boardEl.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  store.setPointer(e.clientX - r.left + el.scrollLeft, e.clientY - r.top + el.scrollTop)
+}
+// neutral cursors while authors are hidden, so colors can't be matched to author dots
+function cursorColor(id: string) {
+  return hideAuthors.value ? '#9a9aa4' : colorFor(id)
+}
 
 const showNameEdit = ref(false)
 const copied = ref(false)
@@ -52,7 +65,25 @@ function submitColumn() {
       </button>
     </header>
 
-    <main class="board">
+    <main
+      ref="boardEl"
+      class="board"
+      @pointermove="onBoardPointer"
+      @pointerleave="store.setPointer(null)"
+    >
+      <div
+        v-for="p in pointers"
+        :key="p.id"
+        class="remote-cursor"
+        :style="{ left: `${p.x}px`, top: `${p.y}px` }"
+      >
+        <Icon name="lucide:mouse-pointer-2" :style="{ color: cursorColor(p.id) }" />
+        <span class="cursor-name" :style="{ background: cursorColor(p.id) }">
+          <!-- while authors are hidden, the real name never reaches the DOM -->
+          <span v-if="hideAuthors" class="author-hidden">{{ fakeNameFor(p.id, p.name.length) }}</span>
+          <template v-else>{{ p.name }}</template>
+        </span>
+      </div>
       <BoardColumn v-for="col in sortedColumns" :key="col.id" :column="col" />
       <div v-if="isOwner" class="add-column">
         <form v-if="addingColumn" class="panel add-column-form" @submit.prevent="submitColumn">

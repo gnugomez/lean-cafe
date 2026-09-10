@@ -17,7 +17,12 @@ const MAX_TOPIC_LENGTH = 100
 
 function send(peer: Peer, msg: unknown) {
   try {
-    peer.send(JSON.stringify(msg))
+    // send may fail synchronously or as a rejected promise (e.g. ECONNRESET
+    // when a peer vanishes mid-relay) — swallow both; close() cleans up
+    const result = peer.send(JSON.stringify(msg)) as unknown
+    if (result && typeof (result as Promise<unknown>).catch === 'function') {
+      ;(result as Promise<unknown>).catch(() => {})
+    }
   } catch {
     // peer gone; close handler cleans up
   }
@@ -80,6 +85,11 @@ export default defineWebSocketHandler({
         send(peer, { type: 'pong' })
         break
     }
+  },
+
+  error(peer, error) {
+    // abrupt disconnects (ECONNRESET etc.) are normal churn, not failures
+    console.warn('[signal] peer error:', (error as any)?.message || error)
   },
 
   close(peer) {

@@ -16,6 +16,11 @@ export interface CardItem {
   authorName: string
   order: number
   createdAt: number
+  /** free position on the column whiteboard, shared across peers */
+  x: number
+  y: number
+  /** stacking order; bumped when a note is moved */
+  z: number
 }
 
 export interface ParticipantItem {
@@ -24,6 +29,13 @@ export interface ParticipantItem {
   color: string
   isOwner: boolean
   isSelf: boolean
+}
+
+export interface RemotePointer {
+  id: string
+  name: string
+  x: number
+  y: number
 }
 
 export interface TimerState {
@@ -116,7 +128,7 @@ export function createRoomStore(code: string, roomName: string) {
       order: m.get('order'),
       width: m.get('width') || 300,
     }))
-    cards.value = [...cardsMap.values()].map(m => ({
+    cards.value = [...cardsMap.values()].map((m, idx) => ({
       id: m.get('id'),
       columnId: m.get('columnId'),
       text: m.get('text'),
@@ -124,6 +136,10 @@ export function createRoomStore(code: string, roomName: string) {
       authorName: m.get('authorName'),
       order: m.get('order'),
       createdAt: m.get('createdAt'),
+      // legacy cards (pre-whiteboard) get a deterministic cascade position
+      x: m.get('x') ?? 14 + (idx % 2) * 36,
+      y: m.get('y') ?? 14 + ((m.get('order') || idx) * 44) % 440,
+      z: m.get('z') ?? idx + 1,
     }))
     const v: Record<string, Record<string, number>> = {}
     votesMap.forEach((val, key) => { v[key] = val || {} })
@@ -149,6 +165,8 @@ export function createRoomStore(code: string, roomName: string) {
   const loaded = ref(false) // local IndexedDB cache loaded
   const peerCount = ref(0) // direct WebRTC peers
   const onlineIds = ref<string[]>([uid])
+  /** live cursors of other participants (awareness only, never persisted) */
+  const pointers = ref<RemotePointer[]>([])
 
   let provider: any = null
   let persistence: any = null
@@ -237,10 +255,36 @@ export function createRoomStore(code: string, roomName: string) {
   function refreshOnline() {
     if (!provider) return
     const ids = new Set<string>([uid])
+    const pts: RemotePointer[] = []
     provider.awareness.getStates().forEach((state: any) => {
-      if (state?.user?.id) ids.add(state.user.id)
+      const user = state?.user
+      if (!user?.id) return
+      ids.add(user.id)
+      if (user.id !== uid && state.pointer) {
+        pts.push({
+          id: user.id,
+          name: user.name || 'Anonymous',
+          x: state.pointer.x,
+          y: state.pointer.y,
+        })
+      }
     })
     onlineIds.value = [...ids]
+    pointers.value = pts
+  }
+
+  let lastPointerSent = 0
+  /** broadcast this client's cursor in board-content coordinates (null = left the board) */
+  function setPointer(x: number | null, y = 0) {
+    if (!provider) return
+    if (x === null) {
+      provider.awareness.setLocalStateField('pointer', null)
+      return
+    }
+    const now = Date.now()
+    if (now - lastPointerSent < 60) return
+    lastPointerSent = now
+    provider.awareness.setLocalStateField('pointer', { x: Math.round(x), y: Math.round(y) })
   }
 
   function destroy() {
@@ -363,11 +407,10 @@ export function createRoomStore(code: string, roomName: string) {
   })
 
   function cardsForColumn(columnId: string): CardItem[] {
-    // Vote ranking is persisted into `order` when voting ends, so display
-    // always follows the stored order.
+    // stable DOM order; visual stacking is handled by each note's z
     return cards.value
       .filter(c => c.columnId === columnId)
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => a.createdAt - b.createdAt)
   }
 
   // ---- identity actions ----
@@ -424,10 +467,13 @@ export function createRoomStore(code: string, roomName: string) {
   /** set when addCard creates an empty card so its editor opens immediately */
   const autoEditCardId = ref<string | null>(null)
 
-  function addCard(columnId: string): string | null {
+  /** create a note; at (x, y) when given (e.g. double-click on the board),
+   * otherwise cascaded so new notes don't fully cover each other */
+  function addCard(columnId: string, x?: number, y?: number): string | null {
     if (!columnsMap.get(columnId)) return null
     const inColumn = cards.value.filter(c => c.columnId === columnId)
-    const maxOrder = inColumn.reduce((m, c) => Math.max(m, c.order), 0)
+    const n = inColumn.length
+    const maxZ = cards.value.reduce((m, c) => Math.max(m, c.z || 0), 0)
     const id = genId()
     const card = new Y.Map()
     card.set('id', id)
@@ -436,8 +482,11 @@ export function createRoomStore(code: string, roomName: string) {
     card.set('body', new Y.XmlFragment())
     card.set('authorId', uid)
     card.set('authorName', name.value || 'Anonymous')
-    card.set('order', maxOrder + 1)
+    card.set('order', n + 1)
     card.set('createdAt', Date.now())
+    card.set('x', Math.round(x ?? 14 + (n % 3) * 32))
+    card.set('y', Math.round(y ?? 14 + (n * 44) % 440))
+    card.set('z', maxZ + 1)
     cardsMap.set(id, card)
     autoEditCardId.value = id
     return id
@@ -468,24 +517,21 @@ export function createRoomStore(code: string, roomName: string) {
   }
 
   function removeCard(id: string) {
+    // what's being voted on must not change mid-round
+    if (voting.value.phase === 'voting') return
     cardsMap.delete(id)
   }
 
-  function moveCard(cardId: string, toColumnId: string, beforeCardId: string | null) {
+  /** place a note at a free position on a column whiteboard, on top of the stack */
+  function moveNote(cardId: string, toColumnId: string, x: number, y: number) {
     const card = cardsMap.get(cardId)
-    if (!card) return
-    const others = cardsForColumn(toColumnId).filter(c => c.id !== cardId)
-    let order: number
-    const idx = beforeCardId ? others.findIndex(c => c.id === beforeCardId) : -1
-    if (idx === -1) {
-      order = others.length ? others[others.length - 1]!.order + 1 : 1
-    } else {
-      const prev = others[idx - 1]
-      order = prev ? (prev.order + others[idx]!.order) / 2 : others[idx]!.order - 1
-    }
+    if (!card || !columnsMap.get(toColumnId)) return
+    const maxZ = cards.value.reduce((m, c) => Math.max(m, c.z || 0), 0)
     doc.transact(() => {
-      card.set('columnId', toColumnId)
-      card.set('order', order)
+      if (card.get('columnId') !== toColumnId) card.set('columnId', toColumnId)
+      card.set('x', Math.round(x))
+      card.set('y', Math.round(y))
+      card.set('z', maxZ + 1)
     })
   }
 
@@ -522,17 +568,9 @@ export function createRoomStore(code: string, roomName: string) {
   function endVoting() {
     if (!isOwner.value) return
     doc.transact(() => {
-      // Bake the ranking into the cards: most-voted first within each column.
+      // Notes keep their free positions — the ranking lives in the badges
+      // and the results history, not in the layout.
       const totals = voteTotals.value
-      for (const col of columns.value) {
-        cards.value
-          .filter(c => c.columnId === col.id)
-          .sort((a, b) => (totals[b.id] || 0) - (totals[a.id] || 0) || a.order - b.order)
-          .forEach((c, i) => {
-            const ycard = cardsMap.get(c.id)
-            if (ycard && ycard.get('order') !== i + 1) ycard.set('order', i + 1)
-          })
-      }
       // Archive the round so new sessions never erase past results.
       const round = voting.value.round || genId(8)
       if (!historyMap.get(round)) {
@@ -608,6 +646,8 @@ export function createRoomStore(code: string, roomName: string) {
     deleteRound,
     draggingCardId,
     dragOverColumn,
+    pointers,
+    setPointer,
     connect,
     destroy,
     cardsForColumn,
@@ -621,7 +661,7 @@ export function createRoomStore(code: string, roomName: string) {
     bodyFragment,
     updateCardText,
     removeCard,
-    moveCard,
+    moveNote,
     startTimer,
     stopTimer,
     toggleAuthors,

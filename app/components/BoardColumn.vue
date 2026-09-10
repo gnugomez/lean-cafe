@@ -3,9 +3,15 @@ import type { ColumnItem } from '~/composables/useRoom'
 
 const props = defineProps<{ column: ColumnItem }>()
 const store = useRoomStore()
-const { draggingCardId, dragOverColumn, isOwner } = store
+const { dragOverColumn, isOwner } = store
 
 const displayCards = computed(() => store.cardsForColumn(props.column.id))
+const isTarget = computed(() => dragOverColumn.value === props.column.id)
+
+// canvas bounds for display-clamping notes (width is shared, height is local)
+const canvasEl = ref<HTMLElement | null>(null)
+const { height: canvasHeight } = useElementSize(canvasEl)
+const canvasWidth = computed(() => props.column.width - 24) // column padding
 
 // title editing (host only)
 const editingTitle = ref(false)
@@ -21,58 +27,13 @@ function commitTitle() {
   editingTitle.value = false
 }
 
-// scroll-overflow hints: fade gradients while there is more content above/below
-const listEl = ref<HTMLElement | null>(null)
-const { arrivedState, measure } = useScroll(listEl, { offset: { top: 4, bottom: 4 } })
-const overflowing = ref(false)
-function checkOverflow() {
-  const el = listEl.value
-  overflowing.value = !!el && el.scrollHeight > el.clientHeight + 1
-  measure()
-}
-useResizeObserver(listEl, checkOverflow)
-watch(displayCards, () => nextTick(checkOverflow))
-onMounted(checkOverflow)
-const showTopFade = computed(() => overflowing.value && !arrivedState.top)
-const showBottomFade = computed(() => overflowing.value && !arrivedState.bottom)
-
-// drag & drop
-const dropIndex = ref(0)
-const isTarget = computed(() => dragOverColumn.value === props.column.id && !!draggingCardId.value)
-
-// grid-aware: a card comes before the pointer if the pointer is above its row,
-// or on the same row but left of its midpoint
-function computeIndex(x: number, y: number): number {
-  const els = listEl.value ? [...listEl.value.querySelectorAll<HTMLElement>('[data-card-id]')] : []
-  for (let i = 0; i < els.length; i++) {
-    const r = els[i]!.getBoundingClientRect()
-    if (y < r.top) return i
-    if (y <= r.bottom && x < r.left + r.width / 2) return i
-  }
-  return els.length
-}
-function onDragOver(e: DragEvent) {
-  if (!draggingCardId.value) return
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-  dragOverColumn.value = props.column.id
-  dropIndex.value = computeIndex(e.clientX, e.clientY)
-}
-function onDragLeave(e: DragEvent) {
-  const el = e.currentTarget as HTMLElement
-  if (e.relatedTarget && el.contains(e.relatedTarget as Node)) return
-  if (dragOverColumn.value === props.column.id) dragOverColumn.value = null
-}
-function onDrop(e: DragEvent) {
-  e.preventDefault()
-  const cardId = draggingCardId.value || e.dataTransfer?.getData('text/plain')
-  dragOverColumn.value = null
-  if (!cardId) return
-  const list = displayCards.value
-  let before = list[dropIndex.value]?.id ?? null
-  if (before === cardId) before = list[dropIndex.value + 1]?.id ?? null
-  store.moveCard(cardId, props.column.id, before)
-  draggingCardId.value = null
+// double-click on empty board space spawns a note right there
+function onCanvasDblClick(e: MouseEvent) {
+  if (e.target !== e.currentTarget) return // clicks on notes are theirs
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const x = Math.max(4, Math.min(e.clientX - rect.left - 8, rect.width - 224))
+  const y = Math.max(4, Math.min(e.clientY - rect.top - 8, rect.height - 90))
+  store.addCard(props.column.id, x, y)
 }
 
 function removeColumn() {
@@ -112,9 +73,7 @@ function onResizeStart(e: PointerEvent) {
     class="panel column"
     :class="{ 'drop-target': isTarget, resizing }"
     :style="{ flex: `0 0 ${column.width}px`, width: `${column.width}px` }"
-    @dragover="onDragOver"
-    @dragleave="onDragLeave"
-    @drop="onDrop"
+    :data-column-id="column.id"
   >
     <header class="col-head">
       <input
@@ -138,16 +97,19 @@ function onResizeStart(e: PointerEvent) {
       <button v-if="isOwner" class="icon-btn" title="Delete column" @click="removeColumn"><Icon name="lucide:x" /></button>
     </header>
 
-    <div class="col-scroll">
-      <div ref="listEl" class="col-cards">
-        <template v-for="(card, i) in displayCards" :key="card.id">
-          <div v-if="isTarget && dropIndex === i" class="drop-line" />
-          <BoardCard :card="card" />
-        </template>
-        <div v-if="isTarget && dropIndex === displayCards.length" class="drop-line" />
-      </div>
-      <div class="col-fade top" :class="{ visible: showTopFade }" />
-      <div class="col-fade bottom" :class="{ visible: showBottomFade }" />
+    <div
+      ref="canvasEl"
+      class="col-canvas"
+      title="Double-click to add a card"
+      @dblclick="onCanvasDblClick"
+    >
+      <BoardCard
+        v-for="card in displayCards"
+        :key="card.id"
+        :card="card"
+        :canvas-width="canvasWidth"
+        :canvas-height="canvasHeight"
+      />
     </div>
 
     <button class="btn add-card-btn" @click="store.addCard(column.id)"><Icon name="lucide:plus" /> Add a card</button>

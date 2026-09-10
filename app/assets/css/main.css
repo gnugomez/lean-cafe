@@ -329,14 +329,38 @@ button { font: inherit; cursor: pointer; color: inherit; }
 
 /* ---------- board & columns ---------- */
 .board {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 14px;
   padding: 14px 12px 20px;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* live cursors of other participants */
+.remote-cursor {
+  position: absolute;
+  z-index: 600;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+  font-size: 15px;
+  transform: translate(-2px, -2px);
+  transition: left 0.08s linear, top 0.08s linear;
+}
+.cursor-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-top: 11px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(27, 27, 31, 0.25);
 }
 .column {
   position: relative;
@@ -396,44 +420,15 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: 999px;
   padding: 1px 8px;
 }
-.col-scroll {
+/* the whiteboard: notes live at free positions inside it */
+.col-canvas {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  flex: 0 1 auto;
-  min-height: 40px;
-}
-/* equal-width tracks that stretch to fill the column: every card is always
-   exactly as wide as every other, and rows fill edge to edge */
-.col-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  /* items stretch: cards sharing a row match the tallest one's height */
-  align-content: start;
-  gap: 10px;
-  overflow-y: auto;
-  min-height: 40px;
-  padding: 3px;
-}
-/* scroll hints: fade when more cards sit above/below the viewport */
-.col-fade {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 30px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.18s;
-  z-index: 1;
-}
-.col-fade.top { top: 0; background: linear-gradient(to bottom, var(--surface), rgba(255, 255, 255, 0)); }
-.col-fade.bottom { bottom: 0; background: linear-gradient(to top, var(--surface), rgba(255, 255, 255, 0)); }
-.col-fade.visible { opacity: 1; }
-.drop-line {
-  grid-column: 1 / -1;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--ink);
+  flex: 1;
+  min-height: 140px;
+  border-radius: 8px;
+  /* faint dot grid inside the board too */
+  background-image: radial-gradient(circle, #ececef 1px, transparent 1.3px);
+  background-size: 20px 20px;
 }
 .add-card-btn,
 .add-column-btn {
@@ -450,24 +445,34 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .add-column-form .input { flex: 1; }
 .add-column-btn { width: 100%; padding: 12px; }
 
-/* ---------- cards ---------- */
+/* ---------- sticky notes ---------- */
 .card {
-  min-width: 0;
+  position: absolute;
+  width: 220px;
   display: flex;
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
-  box-shadow: 0 1px 4px rgba(27, 27, 31, 0.08);
+  box-shadow: 0 2px 6px rgba(27, 27, 31, 0.12);
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .card:active { cursor: grabbing; }
-.card.dragging { opacity: 0.45; }
+.card.dragging {
+  pointer-events: none;
+  opacity: 0.95;
+  box-shadow: 0 14px 30px rgba(27, 27, 31, 0.22);
+}
 .card.editing {
   border-color: var(--ink);
   box-shadow: 0 0 0 3px rgba(27, 27, 31, 0.08);
   cursor: default;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* rich-text body (Tiptap) */
@@ -646,10 +651,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
 
 /* ---------- scrollbars & small screens ---------- */
 .board::-webkit-scrollbar,
-.col-cards::-webkit-scrollbar,
 .rounds::-webkit-scrollbar { width: 8px; height: 8px; }
 .board::-webkit-scrollbar-thumb,
-.col-cards::-webkit-scrollbar-thumb,
 .rounds::-webkit-scrollbar-thumb {
   background: #c9c9d1;
   border-radius: 4px;

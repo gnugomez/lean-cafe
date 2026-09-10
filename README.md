@@ -14,8 +14,14 @@ idea cards to columns, discuss, vote, and move cards around in real time —
   editor bound per card to a `Y.XmlFragment` (Notion-style markdown shortcuts:
   `#` headings, `-` lists, `[ ]` task lists, `>` quotes, ``` code blocks) —
   so two people can type in the same card at once.
-- Columns (add/rename/delete) can only be changed by the room host; anyone can
-  add, edit, move and delete cards.
+- Columns are whiteboards: cards are sticky notes placed freely (position is
+  shared state, so everyone sees the same arrangement), draggable within and
+  across columns — double-click empty board space to spawn a note there.
+  Positions are never rearranged automatically; vote rankings show as badges
+  and in the results history. While a voting round is live, cards are frozen
+  (no editing or deleting).
+- Columns (add/rename/delete/resize) can only be changed by the room host;
+  anyone can add, edit, move and delete cards.
 - **y-webrtc** syncs the Yjs doc directly between browsers over WebRTC. A
   signaling server is used only for the initial peer handshake (and the
   handshake payload is encrypted with a room-derived password, so the signaling
