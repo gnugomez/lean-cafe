@@ -9,12 +9,11 @@ export function createRoomConnection(opts: {
   roomName: string
   doc: Y.Doc
   uid: string
-  myColor: string
   name: Ref<string>
   /** runs once the local cache has loaded, before the provider connects */
   onLoaded: () => void
 }) {
-  const { code, roomName, doc, uid, myColor, name, onLoaded } = opts
+  const { code, roomName, doc, uid, name, onLoaded } = opts
   const config = useRuntimeConfig()
 
   const connected = ref(false) // signaling reachable
@@ -92,7 +91,7 @@ export function createRoomConnection(opts: {
   }
 
   function setAwarenessUser() {
-    provider?.awareness.setLocalStateField('user', { id: uid, name: name.value || 'Anonymous', color: myColor })
+    provider?.awareness.setLocalStateField('user', { id: uid, name: name.value || 'Anonymous' })
   }
 
   function refreshOnline() {

@@ -9,14 +9,14 @@ export function createRoomDoc() {
   const cardsMap = doc.getMap<Y.Map<any>>('cards')
   const votesMap = doc.getMap<Record<string, number>>('votes')
   const historyMap = doc.getMap<RoundResult>('votingHistory')
-  const peopleMap = doc.getMap<{ name: string }>('participants')
+  const peopleMap = doc.getMap<{ name: string, color?: number }>('participants')
 
   // reactive snapshots of the doc
   const columns = ref<ColumnItem[]>([])
   const cards = ref<CardItem[]>([])
   const votes = ref<Record<string, Record<string, number>>>({})
   const history = ref<Record<string, RoundResult>>({})
-  const people = ref<Record<string, { name: string }>>({})
+  const people = ref<Record<string, { name: string, color?: number }>>({})
   const timer = ref<TimerState | null>(null)
   const voting = ref<VotingState>({ phase: 'idle', votesPerUser: 3 })
   const hideAuthors = ref(false)
@@ -73,8 +73,10 @@ export function createRoomDoc() {
       if (val && typeof val === 'object' && Array.isArray(val.results)) h[key] = val
     })
     history.value = h
-    const p: Record<string, { name: string }> = {}
-    peopleMap.forEach((val, key) => { p[key] = { name: str(val?.name) } })
+    const p: Record<string, { name: string, color?: number }> = {}
+    peopleMap.forEach((val, key) => {
+      p[key] = { name: str(val?.name), color: isPaletteIndex(val?.color) ? val.color : undefined }
+    })
     people.value = p
     const rawTimer = metaMap.get('timer') as Partial<TimerState> | null | undefined
     timer.value = rawTimer && Number.isFinite(rawTimer.endsAt) && Number.isFinite(rawTimer.total) && rawTimer.total! > 0

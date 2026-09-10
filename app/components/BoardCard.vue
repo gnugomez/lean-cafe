@@ -12,7 +12,7 @@ const isMine = computed(() => props.card.authorId === store.uid)
 const authorHidden = computed(() => hideAuthors.value && !isMine.value)
 const authorName = computed(() =>
   people.value[props.card.authorId]?.name || props.card.authorName || 'Anonymous')
-const authorColor = computed(() => authorHidden.value ? '#c9c9cf' : colorFor(props.card.authorId))
+const authorColor = computed(() => authorHidden.value ? '#c9c9cf' : store.colorOf(props.card.authorId))
 const fakeAuthor = computed(() => fakeNameFor(props.card.id, authorName.value.length))
 
 // cards are frozen while a voting round is live

@@ -4,7 +4,7 @@ const { pointers, hideAuthors } = store
 
 // neutral cursors while authors are hidden, so colors can't be matched to author dots
 function cursorColor(id: string) {
-  return hideAuthors.value ? '#9a9aa4' : colorFor(id)
+  return hideAuthors.value ? '#9a9aa4' : store.colorOf(id)
 }
 </script>
 

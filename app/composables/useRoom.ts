@@ -39,7 +39,6 @@ export function createRoomStore(code: string, roomName: string) {
     uid = genId()
     setStored(uidKey, uid)
   }
-  const myColor = colorFor(uid)
   const name = ref(getStored(nameKey) || '')
   const ownerToken = getStored(ownerKey)
 
@@ -51,19 +50,57 @@ export function createRoomStore(code: string, roomName: string) {
 
   const { isOwner, reclaimOwnership } = createRoomOwnership({ metaMap, uid, ownerToken, ownerId })
 
+  // ---- per-person colors: palette slots claimed in the shared doc ----
+  // scanning from the uid's hash position makes simultaneous joiners probe
+  // different slots, so first-come claims rarely collide
+  function freeColorIndex(): number | null {
+    const used = new Set<number>()
+    peopleMap.forEach((p, id) => { if (id !== uid && isPaletteIndex(p?.color)) used.add(p.color) })
+    const start = colorIndexFor(uid)
+    for (let i = 0; i < AVATAR_PALETTE.length; i++) {
+      const idx = (start + i) % AVATAR_PALETTE.length
+      if (!used.has(idx)) return idx
+    }
+    return null
+  }
+
+  function claimColorIndex(): number {
+    const mine = peopleMap.get(uid)
+    if (mine && isPaletteIndex(mine.color)) return mine.color
+    return freeColorIndex() ?? colorIndexFor(uid)
+  }
+
+  /** palette slot claimed in the shared doc; hash fallback for unclaimed ids
+   * (e.g. authors of old cards that predate slot claiming) */
+  function colorOf(id: string): string {
+    const idx = people.value[id]?.color
+    return AVATAR_PALETTE[idx ?? colorIndexFor(id)]!
+  }
+
+  // Two peers can still claim the same slot (e.g. both joined before syncing).
+  // Resolve deterministically: the smaller uid keeps it, the other moves to a
+  // free slot — every peer applies the same rule, so it converges.
+  watch(people, (ppl) => {
+    const mine = ppl[uid]
+    if (!mine?.name || !isPaletteIndex(mine.color)) return
+    const loses = Object.entries(ppl).some(([id, p]) => id !== uid && p.color === mine.color && id < uid)
+    if (!loses) return
+    const free = freeColorIndex()
+    if (free !== null && free !== mine.color) peopleMap.set(uid, { name: mine.name, color: free })
+  })
+
   const connection = createRoomConnection({
     code,
     roomName,
     doc,
     uid,
-    myColor,
     name,
     onLoaded: () => {
       doc.transact(() => {
         reclaimOwnership()
         // Fresh room created in this browser: seed the classic Lean Coffee columns.
         if (getStored(seedKey) && columnsMap.size === 0) seedDefaultColumns(columnsMap)
-        if (name.value) peopleMap.set(uid, { name: name.value })
+        if (name.value) peopleMap.set(uid, { name: name.value, color: claimColorIndex() })
       })
       removeStored(seedKey)
     },
@@ -81,7 +118,7 @@ export function createRoomStore(code: string, roomName: string) {
     onlineIds.value.map(id => ({
       id,
       name: id === uid ? (name.value || 'Anonymous') : (people.value[id]?.name || 'Anonymous'),
-      color: colorFor(id),
+      color: colorOf(id),
       isOwner: ownerUid.value === id,
       isSelf: id === uid,
     })),
@@ -93,7 +130,7 @@ export function createRoomStore(code: string, roomName: string) {
     name.value = clean
     setStored(nameKey, clean)
     setStored('leancafe:lastName', clean)
-    peopleMap.set(uid, { name: clean })
+    peopleMap.set(uid, { name: clean, color: claimColorIndex() })
     connection.setAwarenessUser()
   }
 
@@ -137,6 +174,7 @@ export function createRoomStore(code: string, roomName: string) {
     hideAuthors,
     isOwner,
     participants,
+    colorOf,
     sharedViewRound,
     draggingCardId,
     dragOverColumn,

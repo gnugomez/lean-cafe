@@ -1,14 +1,24 @@
-// Vibrant per-person colors (Excalidraw-style palette) for avatars and
-// card author dots — the rest of the UI stays monochrome ink.
-export const AVATAR_PALETTE = [
-  '#e03131', '#1971c2', '#2f9e44', '#f08c00',
-  '#6741d9', '#0c8599', '#d6336c', '#e8590c',
-]
+// Vibrant per-person colors for avatars, author dots and cursors — the rest of
+// the UI stays monochrome ink. oklch() lets wide-gamut (P3) screens render
+// chroma that sRGB hex can't express; sRGB screens gamut-map it down.
+// Golden-angle hue steps keep every prefix of the palette well spread, so
+// slots claimed in order sit far apart on the hue wheel.
+export const AVATAR_PALETTE = Array.from({ length: 16 }, (_, i) =>
+  `oklch(0.66 0.22 ${Math.round((25 + i * 137.508) % 360)})`)
 
-export function colorFor(id: string): string {
+export function isPaletteIndex(n: unknown): n is number {
+  return Number.isInteger(n) && (n as number) >= 0 && (n as number) < AVATAR_PALETTE.length
+}
+
+/** hash fallback for ids that never claimed a palette slot in the shared doc */
+export function colorIndexFor(id: string): number {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
-  return AVATAR_PALETTE[h % AVATAR_PALETTE.length]!
+  return h % AVATAR_PALETTE.length
+}
+
+export function colorFor(id: string): string {
+  return AVATAR_PALETTE[colorIndexFor(id)]!
 }
 
 export function initialsOf(name: string): string {
