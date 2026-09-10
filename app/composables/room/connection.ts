@@ -99,16 +99,23 @@ export function createRoomConnection(opts: {
     if (!provider) return
     const ids = new Set<string>([uid])
     const pts: RemotePointer[] = []
+    // awareness states are peer-controlled: check types and clamp coordinates
+    // so a hostile peer can't blow up the board's scroll area or the UI
+    const coord = (v: unknown): number | null =>
+      typeof v === 'number' && Number.isFinite(v) ? Math.min(100000, Math.max(0, v)) : null
     provider.awareness.getStates().forEach((state) => {
       const user = state?.user
-      if (!user?.id) return
+      if (typeof user?.id !== 'string' || !user.id) return
       ids.add(user.id)
       if (user.id !== uid && state.pointer) {
+        const x = coord(state.pointer.x)
+        const y = coord(state.pointer.y)
+        if (x === null || y === null) return
         pts.push({
           id: user.id,
-          name: user.name || 'Anonymous',
-          x: state.pointer.x,
-          y: state.pointer.y,
+          name: (typeof user.name === 'string' && user.name.slice(0, 32)) || 'Anonymous',
+          x,
+          y,
         })
       }
     })
