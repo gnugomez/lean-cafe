@@ -78,7 +78,9 @@ export function useNoteDrag(opts: {
     }
     dx.value = mx
     dy.value = my
-    dragOverColumn.value = columnAt(e.clientX, e.clientY)?.dataset.columnId ?? null
+    // highlight only a column the card would move into, not its own
+    const overId = columnAt(e.clientX, e.clientY)?.dataset.columnId ?? null
+    dragOverColumn.value = overId !== opts.card().columnId ? overId : null
   }
 
   function onPointerUp(e: PointerEvent) {
