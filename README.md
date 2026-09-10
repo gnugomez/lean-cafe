@@ -1,134 +1,56 @@
 # ☕ Lean Café
 
-A lightweight, peer-to-peer [Lean Coffee](https://leancoffee.org/) board. Teams add
-idea cards to columns, discuss, vote, and move cards around in real time —
-**no board data ever touches a server**.
+A shared [Lean Coffee](https://leancoffee.org/) board. Open a room, send the link, and run your discussion: add sticky notes, vote on what to talk about, and keep time. The board syncs straight between browsers — board content never touches a server.
 
-## How it works
+## What you can do
 
-- **Nuxt 4** serves the app shell and one tiny API: generating and validating
-  short room codes. Codes are stateless (HMAC checksum + derived signaling room
-  name), so the server stores nothing at all — not even the code.
-- **Yjs** is the CRDT holding all board state: columns, cards, votes, names,
-  timer, and ownership. Card bodies are collaborative rich text — a Tiptap
-  editor bound per card to a `Y.XmlFragment` (Notion-style markdown shortcuts:
-  `#` headings, `-` lists, `[ ]` task lists, `>` quotes, ``` code blocks) —
-  so two people can type in the same card at once.
-- Columns are whiteboards: cards are sticky notes placed freely (position is
-  shared state, so everyone sees the same arrangement), draggable within and
-  across columns — double-click empty board space to spawn a note there.
-  Positions are never rearranged automatically; vote rankings show as badges
-  and in the results history. While a voting round is live, cards are frozen
-  (no editing or deleting).
-- Columns (add/rename/delete/resize) can only be changed by the room host;
-  anyone can add, edit, move and delete cards.
-- **y-webrtc** syncs the Yjs doc directly between browsers over WebRTC. A
-  signaling server is used only for the initial peer handshake (and the
-  handshake payload is encrypted with a room-derived password, so the signaling
-  server can't read it). By default the app uses its own built-in relay at
-  `/signal` — the public `signaling.yjs.dev` server has been unreliable — but
-  any y-webrtc-compatible server can be configured instead.
-- **y-indexeddb** caches the doc locally so a refresh or dropped connection
-  doesn't lose state. It's a cache, not a source of truth — peers re-merge on
-  reconnect.
+- Put sticky notes anywhere on a column. Drag them around, or double-click empty space to add one right there.
+- Write in the same note together, at the same time. Type `/` for blocks (headings, lists, tasks, quotes, code) or use markdown shortcuts. New notes open ready to type; an empty note deletes itself.
+- Vote anonymously. The host starts a round with a vote budget, everyone spends their votes, and the results are ranked on the board and kept in a history anyone can browse.
+- Host tools: a countdown timer, columns (add, rename, resize, delete, describe), hiding author names, and picking which round's results show on the cards.
+- Refreshing is safe. The board is cached in your browser and re-syncs when you reconnect.
 
-### Ownership
-
-When you create a room, a random owner token is stored in your browser's
-localStorage. The shared doc records that token (plus your participant id), so
-peers can see who the host is and your browser can re-claim the host role after
-a refresh. The host can start countdown timers and run voting rounds.
-
-### Voting
-
-The host starts a voting round with a chosen number of votes per person.
-Voting is **anonymous**: each browser writes its allocation under a random
-one-off voter key per round, so the shared doc never links votes to names —
-the host only sees an anonymous "n/m voted" progress count. When the host ends
-a round, cards are re-ordered in place (most-voted first per column) and a
-snapshot of the results is archived. Past rounds are never cleared by new ones;
-anyone can browse them via the Results popover, where the host can also delete
-individual rounds. Cards keep showing the votes of the most recent round by
-default: the host picks which round is displayed for everyone, and each
-participant can locally override that (a different round, or hidden) or go back
-to following the host.
-
-The host can also toggle card-author visibility for the whole room — while
-hidden, other people's names are replaced by a blurred placeholder (the real
-name is not rendered at all).
-
-## Development
+## Run it locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000, start a session, and open the invite link in a
-second browser/profile to see the p2p sync.
+Open http://localhost:3000, start a session, and open the invite link in a second browser to see the sync.
 
-## Production
+## Deploy
 
 ```bash
 npm run build
 node .output/server/index.mjs
 ```
 
-Nuxt 4 requires Node `^22.19.0 || ^24.11.0` (see `engines`).
+Needs Node `^22.19.0 || ^24.11.0` (see `engines`). A multi-stage `Dockerfile` is included; the container listens on port 3000. In Coolify pick the **Dockerfile** build pack (nixpacks pins a Node that's too old). Set `NUXT_ROOM_SECRET`, and make sure WebSockets can reach `/signal` (Coolify's proxy allows this by default).
 
-### Docker / Coolify
+### Settings
 
-A multi-stage `Dockerfile` is included — in Coolify select the **Dockerfile**
-build pack (avoid nixpacks: its pinned Node 22.11 is too old for Nuxt 4.5).
-The container listens on port 3000. Set `NUXT_ROOM_SECRET` in the environment;
-the built-in signaling relay at `/signal` needs WebSocket passthrough, which
-Coolify's proxy handles by default.
-
-### Configuration
-
-| Env var | Default | Purpose |
+| Env var | Default | What it does |
 | --- | --- | --- |
-| `NUXT_ROOM_SECRET` | dev secret | HMAC secret for room-code checksums and signaling room names. Set a real one in production; changing it invalidates existing codes. |
+| `NUXT_ROOM_SECRET` | dev secret | Signs room codes. Set a real one in production; changing it invalidates existing codes. |
 | `NUXT_PUBLIC_SIGNALING` | *(empty — use built-in `/signal`)* | Comma-separated y-webrtc signaling server URLs, e.g. `wss://signaling.example.com`. |
-| `NUXT_PUBLIC_ICE_SERVERS` | Google + Cloudflare STUN | JSON array of `RTCIceServer` entries. Add a TURN server for restrictive networks: `[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.example.com:3478","username":"u","credential":"p"}]` |
+| `NUXT_PUBLIC_ICE_SERVERS` | Google + Cloudflare STUN | JSON array of `RTCIceServer` entries. Add a TURN server for strict networks: `[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.example.com:3478","username":"u","credential":"p"}]` |
 
-The built-in relay (`server/routes/signal.ts`) speaks the standard y-webrtc
-signaling protocol: peers subscribe to a room topic and exchange encrypted
-WebRTC handshakes through it. It keeps nothing but in-memory topic
-subscriptions and never sees board content. To use an external server instead
-(e.g. `node node_modules/y-webrtc/bin/server.js`), set
-`NUXT_PUBLIC_SIGNALING=wss://your-host`.
+## How it works
 
-## Troubleshooting sync
+The board lives in the participants' browsers and syncs peer-to-peer over WebRTC (Yjs + y-webrtc). The server never sees board content. It does two small jobs:
 
-- **Two windows of the same browser profile** sync via `BroadcastChannel`, not
-  WebRTC — that path always works, even offline. Cross-browser or
-  cross-machine sync needs WebRTC to connect.
-- **`WebRTC: ICE failed, add a TURN server`** in the console means the peers
-  found each other through signaling but couldn't open a direct data channel.
-  Typical culprits: a VPN or corporate firewall blocking UDP, or strict browser
-  privacy settings. Check `about:webrtc` (Firefox) / `chrome://webrtc-internals`
-  for candidate details, try without the VPN, or configure a TURN server via
-  `NUXT_PUBLIC_ICE_SERVERS` — TURN only relays the encrypted stream, so board
-  content still never leaves the peers in readable form.
-- `patches/y-webrtc+10.3.0.patch` (applied automatically on `npm install`)
-  fixes an upstream crash — `TypeError: existingConn is undefined` — that broke
-  reconnection attempts after a failed ICE round.
+- **Room codes.** Codes carry their own checksum, so the server can check them without storing anything — a room exists as soon as people meet in it.
+- **The `/signal` relay.** Browsers use it once, to find each other. The handshake it relays is encrypted with a key derived from the room code, so the relay can't read it. Any y-webrtc signaling server works instead (`NUXT_PUBLIC_SIGNALING`).
 
-## Notes & limits
+Each browser keeps a local copy of the board (IndexedDB), so a refresh or a dropped connection loses nothing. If every participant clears their browser storage, the board is gone — that's the point.
 
-- New cards open ready to type; leaving a card empty deletes it.
-- UI icons come from `@nuxt/icon` with the Lucide collection bundled locally —
-  no runtime calls to third-party icon CDNs.
+## If sync doesn't work
 
-- Room codes are validated by checksum, not by a registry — the server keeps no
-  state, so a code "exists" as soon as peers meet in it.
-- WebRTC connects directly between peers using public STUN; on very restrictive
-  networks a TURN server would be needed (not configured by default).
-- A room's board lives only in its participants' browsers (IndexedDB). If
-  everyone clears their storage, the board is gone — that's by design.
+- Two windows of the **same browser profile** sync directly, even offline — that says nothing about WebRTC. Test with two different browsers or machines.
+- **"ICE failed, add a TURN server"** in the console: the browsers found each other but couldn't open a direct connection, usually a VPN or firewall blocking UDP. Try without the VPN, or set a TURN server in `NUXT_PUBLIC_ICE_SERVERS` — TURN only relays encrypted traffic, so board content stays private.
+- `patches/y-webrtc+10.3.0.patch` (applied on `npm install`) fixes an upstream crash that broke reconnects after a failed connection attempt.
 
 ## License
 
-This project is licensed under the [Eclipse Public License 2.0](LICENSE)
-(SPDX: `EPL-2.0`).
+[Eclipse Public License 2.0](LICENSE) (SPDX: `EPL-2.0`).
