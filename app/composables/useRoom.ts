@@ -187,10 +187,15 @@ export function createRoomStore(code: string, roomName: string) {
 
     // Local cache is best-effort: without IndexedDB (some private-browsing
     // modes) the board still works, it just won't survive a reload alone.
+    // y-indexeddb's whenSynced never settles when the DB fails to open; its
+    // _db rejection is the only failure signal, so race the two.
     try {
-      persistence = new IndexeddbPersistence(`leancafe-${code}`, doc)
-      await persistence.whenSynced
-    } catch {
+      const idb = new IndexeddbPersistence(`leancafe-${code}`, doc)
+      persistence = idb
+      await Promise.race([idb.whenSynced, idb._db.then(() => idb.whenSynced)])
+    } catch (err) {
+      console.warn('[lean-cafe] IndexedDB unavailable, the board is not cached locally', err)
+      persistence?.destroy().catch(() => {}) // detaches doc listeners; rejects with the same open error
       persistence = null
     }
     if (destroyed) return
