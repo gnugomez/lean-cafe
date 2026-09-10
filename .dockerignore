@@ -1,0 +1,13 @@
+node_modules
+.nuxt
+.output
+.data
+dist
+.git
+.env
+.env.*
+*.log
+.DS_Store
+# original photo asset (only the processed copy in app/assets is used)
+*.jpg
+!app/assets/img/*.jpg

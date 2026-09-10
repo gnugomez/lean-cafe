@@ -3,6 +3,9 @@
   "private": true,
   "license": "EPL-2.0",
   "type": "module",
+  "engines": {
+    "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -34,7 +37,7 @@
     "@types/node": "^22.20.2",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.0",
-    "vite-plugin-node-polyfills": "^0.23.0",
+    "vite-plugin-node-polyfills": "^0.28.0",
     "vue-tsc": "^3.3.11"
   }
 }

@@ -68,6 +68,16 @@ npm run build
 node .output/server/index.mjs
 ```
 
+Nuxt 4 requires Node `^22.19.0 || ^24.11.0` (see `engines`).
+
+### Docker / Coolify
+
+A multi-stage `Dockerfile` is included — in Coolify select the **Dockerfile**
+build pack (avoid nixpacks: its pinned Node 22.11 is too old for Nuxt 4.5).
+The container listens on port 3000. Set `NUXT_ROOM_SECRET` in the environment;
+the built-in signaling relay at `/signal` needs WebSocket passthrough, which
+Coolify's proxy handles by default.
+
 ### Configuration
 
 | Env var | Default | Purpose |
