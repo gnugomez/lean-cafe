@@ -17,22 +17,18 @@ export type {
  * y-webrtc and cached locally via y-indexeddb — no server ever sees it.
  *
  * Doc layout:
- *   meta:         ownerToken (secret held by the owner's browser), ownerUid,
- *                 timer {endsAt,total}|null, voting {phase,votesPerUser}
- *   columns:      colId  -> Y.Map {id,title,order}          (owner-only writes)
- *   cards:        cardId -> Y.Map {id,columnId,text,body,authorId,authorName,order,createdAt}
- *                 `body` is a Y.XmlFragment bound to a Tiptap editor (live
- *                 collaborative rich text); `text` is a plain-text mirror used
- *                 for result snapshots
- *   votes:        voterKey -> {cardId: count}  (anonymous: voterKey is a random
- *                 one-off id per voting round, known only to its own browser —
- *                 votes are never linked to a participant in the shared doc)
- *   votingHistory: roundId -> RoundResult      (archived when a round ends;
- *                 new rounds never clear past results)
- *   participants: userId -> {name}            (persisted names; presence via awareness)
+ *   meta:          ownerToken (secret held by the owner's browser), ownerUid,
+ *                  timer, voting, hideAuthors, displayRound
+ *   columns:       colId  -> Y.Map {id,title,order,width,desc}  (owner-only writes)
+ *   cards:         cardId -> Y.Map {id,columnId,text,body,authorId,authorName,order,createdAt,x,y,z}
+ *                  `body`: Y.XmlFragment bound to Tiptap; `text`: plain-text mirror for result snapshots
+ *   votes:         voterKey -> {cardId: count}  (anonymous: a random per-round key
+ *                  known only to its own browser — never linked to a participant)
+ *   votingHistory: roundId -> RoundResult  (archived when a round ends; never cleared by new rounds)
+ *   participants:  userId -> {name}  (persisted names; live presence via awareness)
  */
 export function createRoomStore(code: string, roomName: string) {
-  // ---- identity (per-room, local to this browser) ----
+  // per-room identity, local to this browser
   const uidKey = `leancafe:${code}:uid`
   const nameKey = `leancafe:${code}:name`
   const ownerKey = `leancafe:${code}:owner`
@@ -81,7 +77,6 @@ export function createRoomStore(code: string, roomName: string) {
     cards, votes, history, voting, sharedViewRound, isOwner,
   })
 
-  // ---- derived state ----
   const participants = computed<ParticipantItem[]>(() =>
     onlineIds.value.map(id => ({
       id,
@@ -92,7 +87,6 @@ export function createRoomStore(code: string, roomName: string) {
     })),
   )
 
-  // ---- identity actions ----
   function setName(newName: string) {
     const clean = newName.trim().slice(0, 24)
     if (!clean) return
@@ -103,7 +97,6 @@ export function createRoomStore(code: string, roomName: string) {
     connection.setAwarenessUser()
   }
 
-  // ---- timer (owner only) ----
   function startTimer(seconds: number) {
     if (!isOwner.value || seconds <= 0) return
     metaMap.set('timer', { endsAt: Date.now() + seconds * 1000, total: seconds })
@@ -119,7 +112,7 @@ export function createRoomStore(code: string, roomName: string) {
     metaMap.set('hideAuthors', !hideAuthors.value)
   }
 
-  // ---- drag state (local UI, not shared) ----
+  // drag state — local UI, never shared
   const draggingCardId = ref<string | null>(null)
   const dragOverColumn = ref<string | null>(null)
 

@@ -1,11 +1,9 @@
 /**
- * Keep the server alive through socket-level noise.
- *
- * The signaling relay's clients drop abruptly all the time (page reloads,
- * sleeping laptops), which can surface as ECONNRESET in places we can't wrap.
- * This server is intentionally stateless — the only in-process state is the
- * relay's in-memory topic map — so logging and continuing is always safer
- * than letting Node's default kill the process for every room at once.
+ * Keep the server alive through socket-level noise: signaling clients drop
+ * abruptly all the time (page reloads, sleeping laptops), surfacing as
+ * ECONNRESET in places we can't wrap. The server is stateless apart from the
+ * relay's in-memory topic map, so logging and continuing beats letting Node's
+ * default kill the process — and every room with it.
  */
 const BENIGN_CODES = new Set([
   'EPIPE',

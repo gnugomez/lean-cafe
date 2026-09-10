@@ -3,7 +3,6 @@ import type { CardItem, ColumnItem, RoundResult, TimerState, VotingState } from 
 import { isHeaderDoc } from './columns'
 
 export function createRoomDoc() {
-  // ---- shared doc ----
   const doc = new Y.Doc()
   const metaMap = doc.getMap<any>('meta')
   const columnsMap = doc.getMap<Y.Map<any>>('columns')
@@ -12,7 +11,7 @@ export function createRoomDoc() {
   const historyMap = doc.getMap<RoundResult>('votingHistory')
   const peopleMap = doc.getMap<{ name: string }>('participants')
 
-  // ---- reactive snapshots of the doc ----
+  // reactive snapshots of the doc
   const columns = ref<ColumnItem[]>([])
   const cards = ref<CardItem[]>([])
   const votes = ref<Record<string, Record<string, number>>>({})

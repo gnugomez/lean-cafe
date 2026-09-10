@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const store = useRoomStore()
 const { voting, isOwner, votesLeft, votersDone, participants, pastRounds } = store
-// Host picks how many votes each participant gets; remember the last round's choice.
+// seeded from the last round's choice
 const votesPerUser = ref(voting.value.votesPerUser || 3)
 const showResults = ref(false)
 
@@ -19,7 +19,6 @@ const progressLabel = computed(() => {
 
 <template>
   <div class="voting">
-    <!-- idle: host can start a round -->
     <form
       v-if="voting.phase === 'idle' && isOwner"
       class="chip-group"
@@ -37,7 +36,6 @@ const progressLabel = computed(() => {
       <button class="group-btn" type="submit" title="Everyone gets this many votes to spend on cards"><Icon name="lucide:vote" /> Vote</button>
     </form>
 
-    <!-- live round -->
     <template v-else-if="voting.phase === 'voting'">
       <div v-if="isOwner" class="chip-group">
         <span class="group-label"><Icon name="lucide:vote" /> {{ votesLeft }} left</span>

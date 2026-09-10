@@ -18,7 +18,6 @@ const fakeAuthor = computed(() => fakeNameFor(props.card.id, authorName.value.le
 // cards are frozen while a voting round is live
 const votingLive = computed(() => voting.value.phase === 'voting')
 
-// ---- collaborative rich-text body (Tiptap bound to the card's Y.XmlFragment) ----
 const { editor, editing, init: initEditor, beginEditing, endEditing } = useCollabEditor({
   getFragment: () => store.bodyFragment(props.card.id),
   placeholder: { placeholder: 'What should we talk about?' },
@@ -31,7 +30,6 @@ const { editor, editing, init: initEditor, beginEditing, endEditing } = useColla
 onMounted(() => {
   initEditor()
   if (!editor.value) return
-  // a card just created by this client opens ready to type
   if (store.autoEditCardId.value === props.card.id) {
     store.autoEditCardId.value = null
     beginEditing()
@@ -42,7 +40,6 @@ watch(votingLive, (live) => {
   if (live && editing.value) endEditing()
 })
 
-// ---- free positioning on the whiteboard ----
 const noteEl = ref<HTMLElement | null>(null)
 const { dragging, dx, dy, onPointerDown } = useNoteDrag({
   noteEl,

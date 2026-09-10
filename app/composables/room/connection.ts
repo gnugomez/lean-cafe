@@ -17,7 +17,6 @@ export function createRoomConnection(opts: {
   const { code, roomName, doc, uid, myColor, name, onLoaded } = opts
   const config = useRuntimeConfig()
 
-  // ---- connection ----
   const connected = ref(false) // signaling reachable
   const loaded = ref(false) // local IndexedDB cache loaded
   const peerCount = ref(0) // direct WebRTC peers
@@ -54,7 +53,6 @@ export function createRoomConnection(opts: {
     loaded.value = true
     onLoaded()
 
-    // Explicit servers via config, otherwise this app's built-in relay.
     const configured = String(config.public.signaling || '')
       .split(',')
       .map(s => s.trim())

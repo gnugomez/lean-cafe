@@ -18,7 +18,6 @@ const canvasEl = ref<HTMLElement | null>(null)
 const { height: canvasHeight } = useElementSize(canvasEl)
 const canvasWidth = computed(() => props.column.width - 24) // column padding
 
-// ---- column description (host-editable collaborative rich text) ----
 const {
   editor: descEditor,
   editing: descEditing,
@@ -61,7 +60,6 @@ onMounted(initDescEditor)
 // non-hosts bind lazily once the host creates (or normalizes) the header doc
 watch(() => props.column.hasDesc, has => { if (has) initDescEditor() })
 
-// double-click on empty board space spawns a note right there
 function onCanvasDblClick(e: MouseEvent) {
   if (e.target !== e.currentTarget) return // clicks on notes are theirs
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()

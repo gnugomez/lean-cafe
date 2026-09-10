@@ -2,7 +2,6 @@ import * as Y from 'yjs'
 import type { Ref } from 'vue'
 import type { CardItem, VotingState } from './types'
 
-// ---- card actions ----
 export function createRoomCards(opts: {
   doc: Y.Doc
   cardsMap: Y.Map<Y.Map<any>>

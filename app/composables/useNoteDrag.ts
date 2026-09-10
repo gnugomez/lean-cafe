@@ -22,9 +22,9 @@ export function useNoteDrag(opts: {
   }
 
   // Drag listeners live on window, NOT on the note: the dragging note goes
-  // pointer-events: none (for hit-testing), which makes some browsers silently
-  // drop pointer capture on it — element-level listeners then never see
-  // pointerup and the note stays stuck in drag state forever.
+  // pointer-events: none (for hit-testing), and some browsers then silently drop
+  // pointer capture — element-level listeners would miss pointerup and leave the
+  // note stuck in drag state.
   let activePointerId: number | null = null
 
   function stopDrag() {

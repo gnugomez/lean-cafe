@@ -22,7 +22,6 @@ export function seedDefaultColumns(columnsMap: Y.Map<Y.Map<any>>) {
   }
 }
 
-// ---- column actions (host only) ----
 export function createRoomColumns(opts: {
   doc: Y.Doc
   columnsMap: Y.Map<Y.Map<any>>
@@ -59,9 +58,8 @@ export function createRoomColumns(opts: {
     if (!col) return null
     let desc = col.get('desc') as Y.XmlFragment | undefined
     const makeTitleHeading = (): Y.XmlElement => {
-      // y-prosemirror stores node attrs raw, so the level must be a number;
-      // Y.XmlElement's attribute map is generic exactly for this (yjs only
-      // types XmlFragment.insert with the default string-attribute element)
+      // y-prosemirror stores node attrs raw, so the level must be a number —
+      // hence the generic Y.XmlElement (yjs types XmlFragment.insert for string attrs only)
       const h = new Y.XmlElement<{ level: number }>('heading')
       h.setAttribute('level', 3)
       const title = String(col.get('title') || '')

@@ -51,7 +51,6 @@ export function useCollabEditor(opts: CollabEditorOptions) {
         StarterKit.configure({
           ...(opts.document ? { document: false } : {}),
           undoRedo: false,
-          // clicking a link navigates only in read-only mode
           link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
         }),
         MarkdownLink,

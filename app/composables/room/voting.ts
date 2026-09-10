@@ -71,9 +71,8 @@ export function createRoomVoting(opts: {
   const pastRounds = computed<RoundResult[]>(() =>
     Object.values(history.value).sort((a, b) => b.endedAt - a.endedAt))
 
-  // ---- which round's votes show on the cards ----
-  // The host picks a round for everyone (meta.displayRound); each person can
-  // locally override it: a round id, 'none' (hide), or null (follow the host).
+  // The host picks a round to show on cards for everyone (meta.displayRound);
+  // each person can override locally: a round id, 'none' (hide), or null (follow the host).
   const viewKey = `leancafe:${code}:viewRound`
   const localViewRound = ref<string | null>(getStored(viewKey))
 

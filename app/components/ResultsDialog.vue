@@ -16,10 +16,8 @@ const following = computed(() => localViewRound.value === null)
 function toggleView(roundId: string) {
   const active = viewRoundId.value === roundId
   if (isOwner.value) {
-    // the host changes what everyone sees by default
     store.setSharedView(active ? null : roundId)
   } else {
-    // everyone else only changes their own view
     store.setLocalView(active ? 'none' : roundId)
   }
 }

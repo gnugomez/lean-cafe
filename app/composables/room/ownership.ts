@@ -11,9 +11,8 @@ export function createRoomOwnership(opts: {
 
   const isOwner = computed(() => !!ownerToken && !!ownerId.value && ownerToken === ownerId.value)
 
-  // Re-claim ownership: the raw token lives only in the creator's browser;
-  // the shared doc holds the current owner's token + uid so peers agree on
-  // who owns the room.
+  // The raw token lives only in the creator's browser; the shared doc holds
+  // the current owner's token + uid so peers agree on who owns the room.
   function reclaimOwnership() {
     if (!ownerToken) return
     if (!metaMap.get('ownerToken')) {

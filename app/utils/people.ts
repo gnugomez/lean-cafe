@@ -19,8 +19,8 @@ export function initialsOf(name: string): string {
 }
 
 /**
- * Deterministic name-like placeholder shown (blurred) when authors are hidden.
- * Seeded by the card id — stable for every viewer, unrelated to the real name.
+ * Deterministic name-like placeholder shown (blurred) when authors are hidden —
+ * stable for every viewer, unrelated to the real name.
  */
 export function fakeNameFor(seed: string, length: number): string {
   const consonants = 'bcdfghklmnprstvw'
