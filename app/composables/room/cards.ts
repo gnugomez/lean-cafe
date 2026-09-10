@@ -1,0 +1,96 @@
+import * as Y from 'yjs'
+import type { Ref } from 'vue'
+import type { CardItem, VotingState } from './types'
+
+// ---- card actions ----
+export function createRoomCards(opts: {
+  doc: Y.Doc
+  cardsMap: Y.Map<Y.Map<any>>
+  columnsMap: Y.Map<Y.Map<any>>
+  cards: Ref<CardItem[]>
+  voting: Ref<VotingState>
+  uid: string
+  name: Ref<string>
+}) {
+  const { doc, cardsMap, columnsMap, cards, voting, uid, name } = opts
+
+  function cardsForColumn(columnId: string): CardItem[] {
+    // stable DOM order; visual stacking is handled by each note's z
+    return cards.value
+      .filter(c => c.columnId === columnId)
+      .sort((a, b) => a.createdAt - b.createdAt)
+  }
+
+  /** set when addCard creates an empty card so its editor opens immediately */
+  const autoEditCardId = ref<string | null>(null)
+
+  /** create a note; at (x, y) when given (e.g. double-click on the board),
+   * otherwise cascaded so new notes don't fully cover each other */
+  function addCard(columnId: string, x?: number, y?: number): string | null {
+    if (!columnsMap.get(columnId)) return null
+    const inColumn = cards.value.filter(c => c.columnId === columnId)
+    const n = inColumn.length
+    const maxZ = cards.value.reduce((m, c) => Math.max(m, c.z || 0), 0)
+    const id = genId()
+    const card = new Y.Map()
+    card.set('id', id)
+    card.set('columnId', columnId)
+    card.set('text', '')
+    card.set('body', new Y.XmlFragment())
+    card.set('authorId', uid)
+    card.set('authorName', name.value || 'Anonymous')
+    card.set('order', n + 1)
+    card.set('createdAt', Date.now())
+    card.set('x', Math.round(x ?? 14 + (n % 3) * 32))
+    card.set('y', Math.round(y ?? 14 + (n * 44) % 440))
+    card.set('z', maxZ + 1)
+    cardsMap.set(id, card)
+    autoEditCardId.value = id
+    return id
+  }
+
+  /** live rich-text body of a card; migrates pre-rich-text cards on the fly */
+  function bodyFragment(cardId: string): Y.XmlFragment | null {
+    const card = cardsMap.get(cardId)
+    if (!card) return null
+    let body = card.get('body') as Y.XmlFragment | undefined
+    if (!body) {
+      body = new Y.XmlFragment()
+      const text = String(card.get('text') || '')
+      if (text) {
+        const p = new Y.XmlElement('paragraph')
+        p.insert(0, [new Y.XmlText(text)])
+        body.insert(0, [p])
+      }
+      card.set('body', body)
+    }
+    return body
+  }
+
+  /** plain-text mirror of the body, used for result snapshots */
+  function updateCardText(id: string, text: string) {
+    const card = cardsMap.get(id)
+    if (card && card.get('text') !== text) card.set('text', text)
+  }
+
+  function removeCard(id: string) {
+    // what's being voted on must not change mid-round
+    if (voting.value.phase === 'voting') return
+    cardsMap.delete(id)
+  }
+
+  /** place a note at a free position on a column whiteboard, on top of the stack */
+  function moveNote(cardId: string, toColumnId: string, x: number, y: number) {
+    const card = cardsMap.get(cardId)
+    if (!card || !columnsMap.get(toColumnId)) return
+    const maxZ = cards.value.reduce((m, c) => Math.max(m, c.z || 0), 0)
+    doc.transact(() => {
+      if (card.get('columnId') !== toColumnId) card.set('columnId', toColumnId)
+      card.set('x', Math.round(x))
+      card.set('y', Math.round(y))
+      card.set('z', maxZ + 1)
+    })
+  }
+
+  return { cardsForColumn, autoEditCardId, addCard, bodyFragment, updateCardText, removeCard, moveNote }
+}
