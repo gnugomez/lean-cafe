@@ -461,12 +461,15 @@ export function createRoomStore(code: string, roomName: string) {
     const col = columnsMap.get(columnId)
     if (!col) return null
     let desc = col.get('desc') as Y.XmlFragment | undefined
-    const makeTitleHeading = () => {
-      const h = new Y.XmlElement('heading')
-      h.setAttribute('level', 3 as unknown as string)
+    const makeTitleHeading = (): Y.XmlElement => {
+      // y-prosemirror stores node attrs raw, so the level must be a number;
+      // Y.XmlElement's attribute map is generic exactly for this (yjs only
+      // types XmlFragment.insert with the default string-attribute element)
+      const h = new Y.XmlElement<{ level: number }>('heading')
+      h.setAttribute('level', 3)
       const title = String(col.get('title') || '')
       if (title) h.insert(0, [new Y.XmlText(title)])
-      return h
+      return h as Y.XmlElement
     }
     if (!desc) {
       if (!isOwner.value) return null
