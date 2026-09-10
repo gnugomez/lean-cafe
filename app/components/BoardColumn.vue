@@ -1,5 +1,14 @@
 <script setup lang="ts">
+import { Editor, EditorContent } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import Collaboration from '@tiptap/extension-collaboration'
+import Document from '@tiptap/extension-document'
+import { Placeholder } from '@tiptap/extensions'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
 import type { ColumnItem } from '~/composables/useRoom'
+
+// first node is always the title heading, the rest is the description
+const ColumnDoc = Document.extend({ content: 'heading block*' })
 
 const props = defineProps<{ column: ColumnItem }>()
 const store = useRoomStore()
@@ -13,18 +22,99 @@ const canvasEl = ref<HTMLElement | null>(null)
 const { height: canvasHeight } = useElementSize(canvasEl)
 const canvasWidth = computed(() => props.column.width - 24) // column padding
 
-// title editing (host only)
-const editingTitle = ref(false)
-const titleDraft = ref('')
-function beginTitle() {
-  if (!isOwner.value) return
-  titleDraft.value = props.column.title
-  editingTitle.value = true
+// keep the plain-string title mirrored from the heading (dialogs, fallbacks)
+let titleTimer: ReturnType<typeof setTimeout> | null = null
+function syncTitle() {
+  if (titleTimer) {
+    clearTimeout(titleTimer)
+    titleTimer = null
+  }
+  const ed = descEditor.value
+  if (!ed || ed.isDestroyed || !isOwner.value) return
+  const title = ed.state.doc.firstChild?.textContent.trim()
+  if (title && title !== props.column.title) store.renameColumn(props.column.id, title)
 }
-function commitTitle() {
-  const clean = titleDraft.value.trim()
-  if (clean && clean !== props.column.title) store.renameColumn(props.column.id, clean)
-  editingTitle.value = false
+
+// ---- column description (host-editable collaborative rich text) ----
+const descEditor = shallowRef<Editor | undefined>(undefined)
+const descEditing = ref(false)
+
+function initDescEditor() {
+  if (descEditor.value) return
+  const fragment = store.columnDescFragment(props.column.id)
+  if (!fragment) return // no header doc yet and we're not the host
+  try {
+    descEditor.value = new Editor({
+      editable: false,
+      extensions: [
+        ColumnDoc,
+        StarterKit.configure({
+          document: false,
+          undoRedo: false,
+          link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
+        }),
+        MarkdownLink,
+        Placeholder.configure({
+          showOnlyWhenEditable: false,
+          showOnlyCurrent: false,
+          placeholder: ({ node }) => node.type.name === 'heading'
+            ? 'Column title'
+            : (isOwner.value ? 'Add a description…' : ''),
+        }),
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        Collaboration.configure({ fragment }),
+      ],
+      editorProps: {
+        handleKeyDown: (_view, event) => {
+          if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
+            endDescEdit()
+            return true
+          }
+          return false
+        },
+      },
+      onUpdate: () => {
+        if (titleTimer) clearTimeout(titleTimer)
+        titleTimer = setTimeout(syncTitle, 400)
+      },
+      onBlur: () => endDescEdit(),
+    })
+  } catch (err) {
+    // schema mismatch on an un-migrated fragment: fall back to the plain title
+    console.warn('[lean-cafe] column header editor failed, showing plain title', err)
+  }
+}
+onMounted(initDescEditor)
+// non-hosts bind lazily once the host creates the fragment
+watch(() => props.column.hasDesc, has => { if (has) initDescEditor() })
+onBeforeUnmount(() => {
+  if (titleTimer) clearTimeout(titleTimer)
+  descEditor.value?.destroy()
+})
+
+function beginDescEdit() {
+  const ed = descEditor.value
+  if (!ed || !isOwner.value || descEditing.value) return
+  descEditing.value = true
+  ed.setEditable(true)
+  nextTick(() => ed.commands.focus('end'))
+}
+function endDescEdit() {
+  const ed = descEditor.value
+  if (!ed || !descEditing.value) return
+  descEditing.value = false
+  // drop trailing empty lines left behind while editing (keep the title node)
+  const doc = ed.state.doc
+  let cut = doc.content.size
+  for (let i = doc.childCount - 1; i > 0; i--) {
+    const child = doc.child(i)
+    if (child.isTextblock && child.content.size === 0) cut -= child.nodeSize
+    else break
+  }
+  if (cut < doc.content.size) ed.commands.deleteRange({ from: cut, to: doc.content.size })
+  ed.setEditable(false)
+  syncTitle()
 }
 
 // double-click on empty board space spawns a note right there
@@ -76,23 +166,16 @@ function onResizeStart(e: PointerEvent) {
     :data-column-id="column.id"
   >
     <header class="col-head">
-      <input
-        v-if="editingTitle"
-        :ref="el => (el as HTMLInputElement)?.focus()"
-        v-model="titleDraft"
-        class="input col-title-input"
-        maxlength="40"
-        @blur="commitTitle"
-        @keydown.enter.prevent="commitTitle"
-        @keydown.esc="editingTitle = false"
+      <div
+        v-if="descEditor"
+        class="col-desc"
+        :class="{ editing: descEditing, editable: isOwner }"
+        :title="isOwner && !descEditing ? 'Click to edit title & description' : undefined"
+        @click="beginDescEdit"
       >
-      <h2
-        v-else
-        class="col-title"
-        :class="{ editable: isOwner }"
-        :title="isOwner ? 'Click to rename' : undefined"
-        @click="beginTitle"
-      >{{ column.title }}</h2>
+        <EditorContent :editor="descEditor" />
+      </div>
+      <h2 v-else class="col-title">{{ column.title }}</h2>
       <span class="col-count">{{ displayCards.length }}</span>
       <button v-if="isOwner" class="icon-btn" title="Delete column" @click="removeColumn"><Icon name="lucide:x" /></button>
     </header>

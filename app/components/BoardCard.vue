@@ -31,7 +31,12 @@ onMounted(() => {
     editable: false,
     extensions: [
       // Collaboration provides Yjs-based undo/redo, so the default is off.
-      StarterKit.configure({ undoRedo: false }),
+      StarterKit.configure({
+        undoRedo: false,
+        // clicking a link navigates only in read-only mode
+        link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
+      }),
+      MarkdownLink,
       Placeholder.configure({ placeholder: 'What should we talk about?' }),
       TaskList,
       TaskItem.configure({ nested: true }),

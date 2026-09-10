@@ -6,6 +6,8 @@ export interface ColumnItem {
   title: string
   order: number
   width: number
+  /** whether a description fragment exists (host creates it lazily) */
+  hasDesc: boolean
 }
 
 export interface CardItem {
@@ -127,6 +129,7 @@ export function createRoomStore(code: string, roomName: string) {
       title: m.get('title'),
       order: m.get('order'),
       width: m.get('width') || 300,
+      hasDesc: !!m.get('desc'),
     }))
     cards.value = [...cardsMap.values()].map((m, idx) => ({
       id: m.get('id'),
@@ -444,6 +447,35 @@ export function createRoomStore(code: string, roomName: string) {
     columnsMap.get(id)?.set('title', clean)
   }
 
+  /** unified column header document (first node = title heading, rest =
+   * description); only the host materializes/migrates the fragment, everyone
+   * else binds read-only once it exists */
+  function columnDescFragment(columnId: string): Y.XmlFragment | null {
+    const col = columnsMap.get(columnId)
+    if (!col) return null
+    let desc = col.get('desc') as Y.XmlFragment | undefined
+    const makeTitleHeading = () => {
+      const h = new Y.XmlElement('heading')
+      h.setAttribute('level', 3 as unknown as string)
+      const title = String(col.get('title') || '')
+      if (title) h.insert(0, [new Y.XmlText(title)])
+      return h
+    }
+    if (!desc) {
+      if (!isOwner.value) return null
+      desc = new Y.XmlFragment()
+      desc.insert(0, [makeTitleHeading()])
+      col.set('desc', desc)
+    } else if (isOwner.value) {
+      // migrate description-only fragments to the heading-first schema
+      const first = desc.get(0)
+      if (!(first instanceof Y.XmlElement) || first.nodeName !== 'heading') {
+        desc.insert(0, [makeTitleHeading()])
+      }
+    }
+    return desc
+  }
+
   function resizeColumn(id: string, width: number) {
     if (!isOwner.value) return
     const w = Math.round(Math.min(900, Math.max(300, width)))
@@ -655,6 +687,7 @@ export function createRoomStore(code: string, roomName: string) {
     addColumn,
     renameColumn,
     resizeColumn,
+    columnDescFragment,
     removeColumn,
     addCard,
     autoEditCardId,

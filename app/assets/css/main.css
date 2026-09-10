@@ -401,7 +401,9 @@ button { font: inherit; cursor: pointer; color: inherit; }
   outline-color: var(--ink);
   background: var(--surface-2);
 }
-.col-head { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.col-head { display: flex; align-items: flex-start; gap: 8px; min-height: 28px; }
+.col-head .col-count,
+.col-head .icon-btn { margin-top: 2px; }
 .col-title {
   flex: 1;
   font-size: 15px;
@@ -409,8 +411,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   cursor: default;
   overflow-wrap: anywhere;
 }
-.col-title.editable { cursor: text; }
-.col-title-input { flex: 1; padding: 4px 8px; font-size: 15px; font-weight: 700; }
 .col-count {
   font-size: 12px;
   font-weight: 700;
@@ -420,6 +420,52 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: 999px;
   padding: 1px 8px;
 }
+/* unified column header: first line is the title, the rest is description */
+.col-desc {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 0 2px 2px;
+  border-radius: 8px;
+}
+.col-desc h1, .col-desc h2, .col-desc h3, .col-desc h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.col-desc.editable { cursor: text; }
+.col-desc.editing {
+  color: var(--ink);
+  background: var(--surface-2);
+  padding: 6px 8px;
+  box-shadow: 0 0 0 2px rgba(27, 27, 31, 0.1);
+}
+.col-desc .ProseMirror { outline: none; overflow-wrap: anywhere; }
+.col-desc .ProseMirror > * + * { margin-top: 0.35em; }
+.col-desc p { margin: 0; }
+.col-desc ul, .col-desc ol { margin: 0; padding-left: 16px; }
+.col-desc code {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 3px;
+  font-size: 11.5px;
+}
+.col-desc ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+.col-desc ul[data-type="taskList"] li { display: flex; gap: 6px; align-items: baseline; }
+.col-desc ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
+.col-desc .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: rgba(110, 110, 120, 0.5);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 /* the whiteboard: notes live at free positions inside it */
 .col-canvas {
   position: relative;
@@ -514,6 +560,23 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .card-body ul[data-type="taskList"] li { display: flex; gap: 6px; align-items: baseline; }
 .card-body ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
 .card-body .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: rgba(110, 110, 120, 0.5);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.card-body a,
+.col-desc a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* hints only where they help: the title while it's the first node, and a
+   single trailing empty description line — never on every blank paragraph */
+.col-desc .ProseMirror > .is-empty:first-child::before,
+.col-desc .ProseMirror > .is-empty:nth-child(2):last-child::before {
   content: attr(data-placeholder);
   color: rgba(110, 110, 120, 0.5);
   float: left;
