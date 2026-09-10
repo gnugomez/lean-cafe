@@ -1,5 +1,7 @@
 import * as Y from 'yjs'
 import type { InjectionKey } from 'vue'
+import type { WebrtcProvider } from 'y-webrtc'
+import type { IndexeddbPersistence } from 'y-indexeddb'
 
 export interface ColumnItem {
   id: string
@@ -171,8 +173,8 @@ export function createRoomStore(code: string, roomName: string) {
   /** live cursors of other participants (awareness only, never persisted) */
   const pointers = ref<RemotePointer[]>([])
 
-  let provider: any = null
-  let persistence: any = null
+  let provider: WebrtcProvider | null = null
+  let persistence: IndexeddbPersistence | null = null
   let destroyed = false
 
   async function connect() {
@@ -244,10 +246,10 @@ export function createRoomStore(code: string, roomName: string) {
         config: { iceServers },
       },
     })
-    provider.on('status', ({ connected: isConnected }: { connected: boolean }) => {
+    provider.on('status', ({ connected: isConnected }) => {
       connected.value = isConnected
     })
-    provider.on('peers', ({ webrtcPeers }: { webrtcPeers: string[] }) => {
+    provider.on('peers', ({ webrtcPeers }) => {
       peerCount.value = webrtcPeers.length
     })
     provider.awareness.setLocalStateField('user', { id: uid, name: name.value || 'Anonymous', color: myColor })
@@ -259,7 +261,7 @@ export function createRoomStore(code: string, roomName: string) {
     if (!provider) return
     const ids = new Set<string>([uid])
     const pts: RemotePointer[] = []
-    provider.awareness.getStates().forEach((state: any) => {
+    provider.awareness.getStates().forEach((state) => {
       const user = state?.user
       if (!user?.id) return
       ids.add(user.id)
