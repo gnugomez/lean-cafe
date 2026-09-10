@@ -105,6 +105,13 @@ export function useCollabEditor(opts: CollabEditorOptions) {
     const ed = editor.value
     if (!ed || !editing.value) return
     editing.value = false
+    // dismiss a slash menu this editor still has open — blur without a
+    // pointerdown (e.g. Tab) neither exits the suggestion plugin nor clears
+    // slashMenuOpen, which would leave the menu floating and mute Escape
+    if (slashMenuOpen.value && !ed.isDestroyed
+      && slashCommandsPluginKey.getState(ed.state)?.active) {
+      ed.view.dispatch(ed.state.tr.setMeta(slashCommandsPluginKey, { exit: true }))
+    }
     opts.beforeEnd?.(ed)
     ed.setEditable(false)
     syncNow()

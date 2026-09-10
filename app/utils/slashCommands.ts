@@ -29,6 +29,11 @@ const ITEMS: SlashCommandItem[] = [
 /** True while a slash menu is on screen — editors leave Escape to the menu then. */
 export const slashMenuOpen = ref(false)
 
+/** exported so useCollabEditor can dismiss a menu when editing ends without a
+ * pointerdown or transaction (e.g. focus tabbed away) — otherwise the menu and
+ * the slashMenuOpen flag stay stuck, muting Escape in every editor */
+export const slashCommandsPluginKey = new PluginKey('slashCommands')
+
 /** Notion-style block menu: type `/` in an editor to insert or convert blocks. */
 export const SlashCommands = Extension.create({
   name: 'slashCommands',
@@ -36,7 +41,7 @@ export const SlashCommands = Extension.create({
   addProseMirrorPlugins() {
     return [
       Suggestion<SlashCommandItem, SlashCommandItem>({
-        pluginKey: new PluginKey('slashCommands'),
+        pluginKey: slashCommandsPluginKey,
         editor: this.editor,
         char: '/',
         items: ({ query }) => {
