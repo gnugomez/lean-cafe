@@ -54,6 +54,7 @@ function initDescEditor() {
           link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
         }),
         MarkdownLink,
+        SlashCommands,
         Placeholder.configure({
           showOnlyWhenEditable: false,
           showOnlyCurrent: false,
@@ -67,6 +68,7 @@ function initDescEditor() {
       ],
       editorProps: {
         handleKeyDown: (_view, event) => {
+          if (slashMenuOpen.value) return false // the menu owns Escape/Enter
           if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
             endDescEdit()
             return true

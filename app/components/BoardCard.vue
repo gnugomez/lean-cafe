@@ -37,6 +37,7 @@ onMounted(() => {
         link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
       }),
       MarkdownLink,
+      SlashCommands,
       Placeholder.configure({ placeholder: 'What should we talk about?' }),
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -44,6 +45,7 @@ onMounted(() => {
     ],
     editorProps: {
       handleKeyDown: (_view, event) => {
+        if (slashMenuOpen.value) return false // the menu owns Escape/Enter
         if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
           endEditing()
           return true
