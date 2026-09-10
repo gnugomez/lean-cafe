@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { Editor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
+import { EditorContent } from '@tiptap/vue-3'
 import Document from '@tiptap/extension-document'
-import { Placeholder } from '@tiptap/extensions'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
 import type { ColumnItem } from '~/composables/useRoom'
 
 // first node is always the title heading, the rest is the description
@@ -22,100 +18,48 @@ const canvasEl = ref<HTMLElement | null>(null)
 const { height: canvasHeight } = useElementSize(canvasEl)
 const canvasWidth = computed(() => props.column.width - 24) // column padding
 
-// keep the plain-string title mirrored from the heading (dialogs, fallbacks);
-// debounced only to coalesce Y.Map writes — endDescEdit() flushes synchronously
-let titleTimer: ReturnType<typeof setTimeout> | null = null
-function syncTitle() {
-  if (titleTimer) {
-    clearTimeout(titleTimer)
-    titleTimer = null
-  }
-  const ed = descEditor.value
-  if (!ed || ed.isDestroyed || !isOwner.value) return
-  const title = ed.state.doc.firstChild?.textContent.trim()
-  if (title && title !== props.column.title) store.renameColumn(props.column.id, title)
-}
-
 // ---- column description (host-editable collaborative rich text) ----
-const descEditor = shallowRef<Editor | undefined>(undefined)
-const descEditing = ref(false)
-
-function initDescEditor() {
-  if (descEditor.value) return
+const {
+  editor: descEditor,
+  editing: descEditing,
+  init: initDescEditor,
+  beginEditing: beginDescEdit,
+  endEditing: endDescEdit,
+} = useCollabEditor({
   // null until the header doc exists in the heading-first shape the ColumnDoc
   // schema requires (the store's isHeaderDoc guard) — plain title until then
-  const fragment = store.columnDescFragment(props.column.id)
-  if (!fragment) return
-  descEditor.value = new Editor({
-    editable: false,
-    extensions: [
-      ColumnDoc,
-      StarterKit.configure({
-        document: false,
-        undoRedo: false,
-        link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
-      }),
-      MarkdownLink,
-      SlashCommands,
-      Placeholder.configure({
-        showOnlyWhenEditable: false,
-        showOnlyCurrent: false,
-        placeholder: ({ node }) => node.type.name === 'heading'
-          ? 'Column title'
-          : (isOwner.value ? 'Add a description…' : ''),
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Collaboration.configure({ fragment }),
-    ],
-    editorProps: {
-      handleKeyDown: (_view, event) => {
-        if (slashMenuOpen.value) return false // the menu owns Escape/Enter
-        if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
-          endDescEdit()
-          return true
-        }
-        return false
-      },
-    },
-    onUpdate: () => {
-      if (titleTimer) clearTimeout(titleTimer)
-      titleTimer = setTimeout(syncTitle, 400)
-    },
-    onBlur: () => endDescEdit(),
-  })
-}
+  getFragment: () => store.columnDescFragment(props.column.id),
+  document: ColumnDoc,
+  placeholder: {
+    showOnlyWhenEditable: false,
+    showOnlyCurrent: false,
+    placeholder: ({ node }) => node.type.name === 'heading'
+      ? 'Column title'
+      : (isOwner.value ? 'Add a description…' : ''),
+  },
+  canEdit: () => isOwner.value,
+  // keep the plain-string title mirrored from the heading (dialogs, fallbacks);
+  // debounced only to coalesce Y.Map writes — endDescEdit() flushes synchronously
+  onSync: (ed) => {
+    if (!isOwner.value) return
+    const title = ed.state.doc.firstChild?.textContent.trim()
+    if (title && title !== props.column.title) store.renameColumn(props.column.id, title)
+  },
+  // drop trailing empty lines left behind while editing (keep the title node)
+  beforeEnd: (ed) => {
+    const doc = ed.state.doc
+    let cut = doc.content.size
+    for (let i = doc.childCount - 1; i > 0; i--) {
+      const child = doc.child(i)
+      if (child.isTextblock && child.content.size === 0) cut -= child.nodeSize
+      else break
+    }
+    if (cut < doc.content.size) ed.commands.deleteRange({ from: cut, to: doc.content.size })
+  },
+})
 onMounted(initDescEditor)
 // non-hosts bind lazily once the host creates (or normalizes) the header doc
 watch(() => props.column.hasDesc, has => { if (has) initDescEditor() })
-onBeforeUnmount(() => {
-  if (titleTimer) clearTimeout(titleTimer)
-  descEditor.value?.destroy()
-})
-
-function beginDescEdit() {
-  const ed = descEditor.value
-  if (!ed || !isOwner.value || descEditing.value) return
-  descEditing.value = true
-  ed.setEditable(true)
-  nextTick(() => ed.commands.focus('end'))
-}
-function endDescEdit() {
-  const ed = descEditor.value
-  if (!ed || !descEditing.value) return
-  descEditing.value = false
-  // drop trailing empty lines left behind while editing (keep the title node)
-  const doc = ed.state.doc
-  let cut = doc.content.size
-  for (let i = doc.childCount - 1; i > 0; i--) {
-    const child = doc.child(i)
-    if (child.isTextblock && child.content.size === 0) cut -= child.nodeSize
-    else break
-  }
-  if (cut < doc.content.size) ed.commands.deleteRange({ from: cut, to: doc.content.size })
-  ed.setEditable(false)
-  syncTitle()
-}
 
 // double-click on empty board space spawns a note right there
 function onCanvasDblClick(e: MouseEvent) {

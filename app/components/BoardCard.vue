@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { Editor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
-import { Placeholder } from '@tiptap/extensions'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { EditorContent } from '@tiptap/vue-3'
 import type { CardItem } from '~/composables/useRoom'
 
 const props = defineProps<{ card: CardItem, canvasWidth: number, canvasHeight: number }>()
@@ -19,49 +15,22 @@ const authorName = computed(() =>
 const authorColor = computed(() => authorHidden.value ? '#c9c9cf' : colorFor(props.card.authorId))
 const fakeAuthor = computed(() => fakeNameFor(props.card.id, authorName.value.length))
 
+// cards are frozen while a voting round is live
+const votingLive = computed(() => voting.value.phase === 'voting')
+
 // ---- collaborative rich-text body (Tiptap bound to the card's Y.XmlFragment) ----
-const editing = ref(false)
-const editor = shallowRef<Editor | undefined>(undefined)
-// The plain-text mirror is debounced only to coalesce writes: every Y.Map set
-// appends to the doc's update log and re-renders all peers, so per-keystroke
-// mirroring would be pure churn. endEditing() flushes synchronously.
-let mirrorTimer: ReturnType<typeof setTimeout> | null = null
+const { editor, editing, init: initEditor, beginEditing, endEditing } = useCollabEditor({
+  getFragment: () => store.bodyFragment(props.card.id),
+  placeholder: { placeholder: 'What should we talk about?' },
+  canEdit: () => !votingLive.value,
+  onSync: ed => store.updateCardText(props.card.id, ed.getText().trim()),
+  // abandoning an empty card removes it
+  afterEnd: (ed) => { if (ed.isEmpty) store.removeCard(props.card.id) },
+})
 
 onMounted(() => {
-  const fragment = store.bodyFragment(props.card.id)
-  if (!fragment) return
-  editor.value = new Editor({
-    editable: false,
-    extensions: [
-      // Collaboration provides Yjs-based undo/redo, so the default is off.
-      StarterKit.configure({
-        undoRedo: false,
-        // clicking a link navigates only in read-only mode
-        link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
-      }),
-      MarkdownLink,
-      SlashCommands,
-      Placeholder.configure({ placeholder: 'What should we talk about?' }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Collaboration.configure({ fragment }),
-    ],
-    editorProps: {
-      handleKeyDown: (_view, event) => {
-        if (slashMenuOpen.value) return false // the menu owns Escape/Enter
-        if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
-          endEditing()
-          return true
-        }
-        return false
-      },
-    },
-    onUpdate: () => {
-      if (mirrorTimer) clearTimeout(mirrorTimer)
-      mirrorTimer = setTimeout(syncMirror, 400)
-    },
-    onBlur: () => endEditing(),
-  })
+  initEditor()
+  if (!editor.value) return
   // a card just created by this client opens ready to type
   if (store.autoEditCardId.value === props.card.id) {
     store.autoEditCardId.value = null
@@ -71,42 +40,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopDrag() // e.g. the card was deleted by another peer mid-drag
-  if (mirrorTimer) clearTimeout(mirrorTimer)
-  editor.value?.destroy()
 })
 
-function syncMirror() {
-  if (mirrorTimer) {
-    clearTimeout(mirrorTimer)
-    mirrorTimer = null
-  }
-  const ed = editor.value
-  if (ed && !ed.isDestroyed) store.updateCardText(props.card.id, ed.getText().trim())
-}
-
-// cards are frozen while a voting round is live
-const votingLive = computed(() => voting.value.phase === 'voting')
 watch(votingLive, (live) => {
   if (live && editing.value) endEditing()
 })
-
-function beginEditing() {
-  const ed = editor.value
-  if (!ed || editing.value || votingLive.value) return
-  editing.value = true
-  ed.setEditable(true)
-  nextTick(() => ed.commands.focus('end'))
-}
-
-function endEditing() {
-  const ed = editor.value
-  if (!ed || !editing.value) return
-  editing.value = false
-  ed.setEditable(false)
-  syncMirror()
-  // abandoning an empty card removes it
-  if (ed.isEmpty) store.removeCard(props.card.id)
-}
 
 // ---- free positioning on the whiteboard ----
 const noteEl = ref<HTMLElement | null>(null)
