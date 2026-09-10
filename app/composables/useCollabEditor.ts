@@ -3,7 +3,6 @@ import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extensions'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
-import type { AnyExtension } from '@tiptap/core'
 import type { PlaceholderOptions } from '@tiptap/extensions'
 import type * as Y from 'yjs'
 
@@ -11,13 +10,9 @@ export interface CollabEditorOptions {
   /** null = the fragment isn't bindable yet; init() stays a no-op until it is */
   getFragment: () => Y.XmlFragment | null
   placeholder: Partial<PlaceholderOptions>
-  /** replaces StarterKit's Document (e.g. the column header schema) */
-  document?: AnyExtension
   canEdit?: () => boolean
   /** debounced while typing; endEditing() flushes it synchronously */
   onSync: (editor: Editor) => void
-  /** runs when editing ends, while the editor is still editable */
-  beforeEnd?: (editor: Editor) => void
   /** runs when editing ends, after the synchronous flush */
   afterEnd?: (editor: Editor) => void
 }
@@ -46,10 +41,8 @@ export function useCollabEditor(opts: CollabEditorOptions) {
     editor.value = new Editor({
       editable: false,
       extensions: [
-        ...(opts.document ? [opts.document] : []),
         // Collaboration provides Yjs-based undo/redo, so the default is off.
         StarterKit.configure({
-          ...(opts.document ? { document: false } : {}),
           undoRedo: false,
           link: {
             // false = never open through the click-handler plugin. Read-only
@@ -112,7 +105,6 @@ export function useCollabEditor(opts: CollabEditorOptions) {
       && slashCommandsPluginKey.getState(ed.state)?.active) {
       ed.view.dispatch(ed.state.tr.setMeta(slashCommandsPluginKey, { exit: true }))
     }
-    opts.beforeEnd?.(ed)
     ed.setEditable(false)
     syncNow()
     opts.afterEnd?.(ed)

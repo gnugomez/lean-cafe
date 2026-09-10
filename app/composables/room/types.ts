@@ -3,9 +3,6 @@ export interface ColumnItem {
   title: string
   order: number
   width: number
-  /** whether a bindable header doc exists — heading-first, see isHeaderDoc()
-   * (the host creates/normalizes it lazily) */
-  hasDesc: boolean
 }
 
 export interface CardItem {

@@ -11,15 +11,6 @@ export function clampColumnWidth(width: number) {
   return Math.round(Math.min(COLUMN_MAX_WIDTH, Math.max(COLUMN_MIN_WIDTH, width)))
 }
 
-/** a header fragment is bindable once its first node is the title heading —
- * the column header editor's schema is 'heading block*', so binding anything
- * else would throw at Editor construction */
-export function isHeaderDoc(frag: unknown): boolean {
-  if (!(frag instanceof Y.XmlFragment)) return false
-  const first = frag.get(0)
-  return first instanceof Y.XmlElement && first.nodeName === 'heading'
-}
-
 export function seedDefaultColumns(columnsMap: Y.Map<Y.Map<any>>) {
   for (const [i, title] of ['To discuss', 'Discussing', 'Discussed'].entries()) {
     const id = genId()
@@ -59,37 +50,6 @@ export function createRoomColumns(opts: {
     columnsMap.get(id)?.set('title', clean)
   }
 
-  /** unified column header document (first node = title heading, rest =
-   * description); only the host materializes/normalizes the fragment, everyone
-   * else binds read-only once it has the heading-first shape */
-  function columnDescFragment(columnId: string): Y.XmlFragment | null {
-    const col = columnsMap.get(columnId)
-    if (!col) return null
-    let desc = col.get('desc') as Y.XmlFragment | undefined
-    const makeTitleHeading = (): Y.XmlElement => {
-      // y-prosemirror stores node attrs raw, so the level must be a number —
-      // hence the generic Y.XmlElement (yjs types XmlFragment.insert for string attrs only)
-      const h = new Y.XmlElement<{ level: number }>('heading')
-      h.setAttribute('level', 3)
-      const title = String(col.get('title') || '')
-      if (title) h.insert(0, [new Y.XmlText(title)])
-      return h as Y.XmlElement
-    }
-    if (!desc) {
-      if (!isOwner.value) return null
-      desc = new Y.XmlFragment()
-      desc.insert(0, [makeTitleHeading()])
-      col.set('desc', desc)
-    } else if (!isHeaderDoc(desc)) {
-      // fragments written by pre-release dev builds lack the title heading;
-      // the host (the doc's only header writer) prepends it, everyone else
-      // waits — rebuild() flips hasDesc once the shape is right
-      if (!isOwner.value) return null
-      desc.insert(0, [makeTitleHeading()])
-    }
-    return desc
-  }
-
   function resizeColumn(id: string, width: number) {
     if (!isOwner.value) return
     const w = clampColumnWidth(width)
@@ -109,5 +69,5 @@ export function createRoomColumns(opts: {
     })
   }
 
-  return { addColumn, renameColumn, resizeColumn, removeColumn, columnDescFragment }
+  return { addColumn, renameColumn, resizeColumn, removeColumn }
 }

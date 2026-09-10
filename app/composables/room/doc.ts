@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import type { CardItem, ColumnItem, RoundResult, TimerState, VotingState } from './types'
-import { COLUMN_MIN_WIDTH, clampColumnWidth, isHeaderDoc } from './columns'
+import { COLUMN_MIN_WIDTH, clampColumnWidth } from './columns'
 
 export function createRoomDoc() {
   const doc = new Y.Doc()
@@ -41,7 +41,6 @@ export function createRoomDoc() {
         order: num(m.get('order'), 0),
         // same bounds resizeColumn enforces, against out-of-range peer values
         width: clampColumnWidth(num(m.get('width'), COLUMN_MIN_WIDTH)),
-        hasDesc: isHeaderDoc(m.get('desc')),
       }))
     cards.value = [...cardsMap.values()]
       .filter((m): m is Y.Map<any> => m instanceof Y.Map)

@@ -455,9 +455,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   outline-color: var(--ink);
   background: var(--surface-2);
 }
-.col-head { display: flex; align-items: flex-start; gap: var(--gap-md); min-height: 1.75rem; }
-.col-head .col-count,
-.col-head .icon-btn { margin-top: 0.125rem; }
+.col-head { display: flex; align-items: center; gap: var(--gap-md); min-height: 1.75rem; }
 .col-title {
   flex: 1;
   font-size: 0.9375rem;
@@ -465,6 +463,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
   cursor: default;
   overflow-wrap: anywhere;
 }
+.col-title.editable { cursor: text; }
+.col-title-input { flex: 1; padding: 0.25rem 0.5rem; font-size: 0.9375rem; font-weight: 700; }
 .col-count {
   font-size: 0.75rem;
   font-weight: 700;
@@ -474,34 +474,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: var(--radius-pill);
   padding: 0.0625rem 0.5rem;
 }
-/* unified column header: first line is the title, the rest is description */
-.col-desc {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.78125rem;
-  color: var(--muted);
-  line-height: 1.5;
-  padding: 0 0.125rem 0.125rem;
-  border-radius: var(--radius-md);
-}
-.col-desc h1, .col-desc h2, .col-desc h3, .col-desc h4 {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--ink);
-}
-.col-desc.editable { cursor: text; }
-.col-desc.editing {
-  color: var(--ink);
-  background: var(--surface-2);
-  padding: 0.375rem 0.5rem;
-  box-shadow: 0 0 0 2px rgba(27, 27, 31, 0.1);
-}
-.col-desc .ProseMirror > * + * { margin-top: 0.35em; }
-.col-desc ul, .col-desc ol { margin: 0; padding-left: 1rem; }
-.col-desc code { padding: 0 0.1875rem; font-size: 0.71875rem; }
-
 /* the whiteboard: notes live at free positions inside it */
 .col-canvas {
   position: relative;
@@ -586,36 +558,23 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .card-body pre code { background: transparent; border: none; padding: 0; color: inherit; }
 .card-body hr { border: none; border-top: 1px solid var(--border); margin: 0.375rem 0; }
 
-/* editor content shared by note bodies and column headers */
-.card-body .ProseMirror,
-.col-desc .ProseMirror { outline: none; overflow-wrap: anywhere; }
-.card-body p,
-.col-desc p { margin: 0; }
-.card-body code,
-.col-desc code {
+.card-body .ProseMirror { outline: none; overflow-wrap: anywhere; }
+.card-body p { margin: 0; }
+.card-body code {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
 }
-.card-body ul[data-type="taskList"],
-.col-desc ul[data-type="taskList"] { list-style: none; padding-left: 0.125rem; }
-.card-body ul[data-type="taskList"] li,
-.col-desc ul[data-type="taskList"] li { display: flex; gap: var(--gap-sm); align-items: baseline; }
-.card-body ul[data-type="taskList"] input[type="checkbox"],
-.col-desc ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
-.card-body a,
-.col-desc a {
+.card-body ul[data-type="taskList"] { list-style: none; padding-left: 0.125rem; }
+.card-body ul[data-type="taskList"] li { display: flex; gap: var(--gap-sm); align-items: baseline; }
+.card-body ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
+.card-body a {
   color: var(--ink);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-/* placeholder hints only where they help: the card body, the column title
-   while it's the first node, and a single trailing empty description line —
-   never on every blank paragraph */
-.card-body .ProseMirror p.is-editor-empty:first-child::before,
-.col-desc .ProseMirror > .is-empty:first-child::before,
-.col-desc .ProseMirror > .is-empty:nth-child(2):last-child::before {
+.card-body .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--placeholder);
   float: left;
