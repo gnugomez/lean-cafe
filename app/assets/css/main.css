@@ -214,7 +214,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .hero {
   width: min(27.5rem, 100%);
-  padding: 2.5rem 2.25rem;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -225,6 +224,13 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .hero-logo { font-size: 2.75rem; line-height: 1; }
 .hero h1 { font-size: 1.875rem; letter-spacing: -0.02em; }
 .tagline { margin: 0; color: var(--muted); font-size: 0.9375rem; line-height: 1.55; }
+.tagline a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tagline a:hover { color: var(--ink); }
 .divider {
   width: 100%;
   display: flex;
@@ -252,7 +258,20 @@ button { font: inherit; cursor: pointer; color: inherit; }
   text-align: center;
   max-width: 32.5rem;
   line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
 }
+.foot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  color: var(--muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+.foot-link:hover { color: var(--ink); }
 .center-screen { min-height: 100%; display: grid; place-items: center; padding: 1.5rem 1rem; }
 
 /* ---------- dialogs ---------- */

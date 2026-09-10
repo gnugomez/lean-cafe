@@ -37,12 +37,13 @@ async function joinRoom() {
 
 <template>
   <div class="landing">
-    <main class="panel hero">
+    <main class="hero">
       <div class="hero-logo">☕</div>
       <h1>Lean Café</h1>
       <p class="tagline">
-        Run a Lean Coffee session with your team — cards, votes and timers sync
-        directly between browsers. No accounts, nothing stored on a server.
+        Run a <a href="https://leancoffee.org/" target="_blank" rel="noopener">Lean Coffee</a>
+        session with your team. Cards, votes and timers sync straight between
+        browsers — no accounts, nothing stored on a server.
       </p>
       <button class="btn btn-primary btn-big" :disabled="creating" @click="createRoom">
         {{ creating ? 'Creating room…' : 'Start a session' }}
@@ -64,8 +65,10 @@ async function joinRoom() {
       <p v-if="joinError" class="form-error">{{ joinError }}</p>
     </main>
     <footer class="landing-foot">
-      Peer-to-peer via WebRTC · board data never leaves your browsers ·
-      a public signaling server is used only to introduce peers
+      <span>Peer-to-peer via WebRTC · board data never leaves your browsers</span>
+      <a class="foot-link" href="https://github.com/gnugomez/lean-cafe" target="_blank" rel="noopener">
+        <Icon name="lucide:github" /> Source on GitHub
+      </a>
     </footer>
   </div>
 </template>
