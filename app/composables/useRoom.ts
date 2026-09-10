@@ -238,11 +238,16 @@ export function createRoomStore(code: string, roomName: string) {
       ? configured
       : [`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/signal`]
 
+    // Both branches below are only reachable when NUXT_PUBLIC_ICE_SERVERS is
+    // overridden with something broken — warn instead of masking the misconfig.
     let iceServers: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }]
     try {
       const parsed = JSON.parse(String(config.public.iceServers))
       if (Array.isArray(parsed) && parsed.length) iceServers = parsed
-    } catch { /* keep fallback */ }
+      else console.warn('[lean-cafe] iceServers config is not a non-empty array, using the STUN fallback')
+    } catch {
+      console.warn('[lean-cafe] iceServers config is not valid JSON, using the STUN fallback')
+    }
 
     provider = new WebrtcProvider(roomName, doc, {
       signaling,
