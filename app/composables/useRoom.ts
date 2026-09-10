@@ -1,8 +1,8 @@
 import type { InjectionKey } from 'vue'
-import type { WebrtcProvider } from 'y-webrtc'
-import type { IndexeddbPersistence } from 'y-indexeddb'
-import type { ParticipantItem, RemotePointer } from './room/types'
+import type { ParticipantItem } from './room/types'
 import { createRoomDoc } from './room/doc'
+import { createRoomOwnership } from './room/ownership'
+import { createRoomConnection } from './room/connection'
 import { createRoomColumns, seedDefaultColumns } from './room/columns'
 import { createRoomCards } from './room/cards'
 import { createRoomVoting } from './room/voting'
@@ -32,8 +32,6 @@ export type {
  *   participants: userId -> {name}            (persisted names; presence via awareness)
  */
 export function createRoomStore(code: string, roomName: string) {
-  const config = useRuntimeConfig()
-
   // ---- identity (per-room, local to this browser) ----
   const uidKey = `leancafe:${code}:uid`
   const nameKey = `leancafe:${code}:name`
@@ -55,146 +53,35 @@ export function createRoomStore(code: string, roomName: string) {
     sharedViewRound, ownerId, ownerUid,
   } = createRoomDoc()
 
-  // ---- connection ----
-  const connected = ref(false) // signaling reachable
-  const loaded = ref(false) // local IndexedDB cache loaded
-  const peerCount = ref(0) // direct WebRTC peers
-  const onlineIds = ref<string[]>([uid])
-  /** live cursors of other participants (awareness only, never persisted) */
-  const pointers = ref<RemotePointer[]>([])
+  const { isOwner, reclaimOwnership } = createRoomOwnership({ metaMap, uid, ownerToken, ownerId })
 
-  let provider: WebrtcProvider | null = null
-  let persistence: IndexeddbPersistence | null = null
-  let destroyed = false
+  const connection = createRoomConnection({
+    code,
+    roomName,
+    doc,
+    uid,
+    myColor,
+    name,
+    onLoaded: () => {
+      doc.transact(() => {
+        reclaimOwnership()
+        // Fresh room created in this browser: seed the classic Lean Coffee columns.
+        if (getStored(seedKey) && columnsMap.size === 0) seedDefaultColumns(columnsMap)
+        if (name.value) peopleMap.set(uid, { name: name.value })
+      })
+      removeStored(seedKey)
+    },
+  })
+  const { connected, loaded, peerCount, onlineIds, pointers, connect, setPointer } = connection
 
-  async function connect() {
-    if (import.meta.server || provider || destroyed) return
-    const [{ WebrtcProvider }, { IndexeddbPersistence }] = await Promise.all([
-      import('y-webrtc'),
-      import('y-indexeddb'),
-    ])
-    if (destroyed) return
-
-    // Local cache is best-effort: without IndexedDB (some private-browsing
-    // modes) the board still works, it just won't survive a reload alone.
-    // y-indexeddb's whenSynced never settles when the DB fails to open; its
-    // _db rejection is the only failure signal, so race the two.
-    try {
-      const idb = new IndexeddbPersistence(`leancafe-${code}`, doc)
-      persistence = idb
-      await Promise.race([idb.whenSynced, idb._db.then(() => idb.whenSynced)])
-    } catch (err) {
-      console.warn('[lean-cafe] IndexedDB unavailable, the board is not cached locally', err)
-      persistence?.destroy().catch(() => {}) // detaches doc listeners; rejects with the same open error
-      persistence = null
-    }
-    if (destroyed) return
-    loaded.value = true
-
-    doc.transact(() => {
-      // Re-claim ownership: the raw token lives only in the creator's browser;
-      // the shared doc holds the current owner's token + uid so peers agree on
-      // who owns the room.
-      if (ownerToken) {
-        if (!metaMap.get('ownerToken')) {
-          metaMap.set('ownerToken', ownerToken)
-          metaMap.set('ownerUid', uid)
-        } else if (metaMap.get('ownerToken') === ownerToken && metaMap.get('ownerUid') !== uid) {
-          metaMap.set('ownerUid', uid)
-        }
-      }
-      // Fresh room created in this browser: seed the classic Lean Coffee columns.
-      if (getStored(seedKey) && columnsMap.size === 0) seedDefaultColumns(columnsMap)
-      if (name.value) peopleMap.set(uid, { name: name.value })
-    })
-    removeStored(seedKey)
-
-    // Explicit servers via config, otherwise this app's built-in relay.
-    const configured = String(config.public.signaling || '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-    const signaling = configured.length
-      ? configured
-      : [`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/signal`]
-
-    // Both branches below are only reachable when NUXT_PUBLIC_ICE_SERVERS is
-    // overridden with something broken — warn instead of masking the misconfig.
-    let iceServers: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }]
-    try {
-      const parsed = JSON.parse(String(config.public.iceServers))
-      if (Array.isArray(parsed) && parsed.length) iceServers = parsed
-      else console.warn('[lean-cafe] iceServers config is not a non-empty array, using the STUN fallback')
-    } catch {
-      console.warn('[lean-cafe] iceServers config is not valid JSON, using the STUN fallback')
-    }
-
-    provider = new WebrtcProvider(roomName, doc, {
-      signaling,
-      // The signaling server only relays encrypted handshakes for this room.
-      password: `leancafe:${code}`,
-      peerOpts: {
-        config: { iceServers },
-      },
-    })
-    provider.on('status', ({ connected: isConnected }) => {
-      connected.value = isConnected
-    })
-    provider.on('peers', ({ webrtcPeers }) => {
-      peerCount.value = webrtcPeers.length
-    })
-    provider.awareness.setLocalStateField('user', { id: uid, name: name.value || 'Anonymous', color: myColor })
-    provider.awareness.on('change', refreshOnline)
-    refreshOnline()
-  }
-
-  function refreshOnline() {
-    if (!provider) return
-    const ids = new Set<string>([uid])
-    const pts: RemotePointer[] = []
-    provider.awareness.getStates().forEach((state) => {
-      const user = state?.user
-      if (!user?.id) return
-      ids.add(user.id)
-      if (user.id !== uid && state.pointer) {
-        pts.push({
-          id: user.id,
-          name: user.name || 'Anonymous',
-          x: state.pointer.x,
-          y: state.pointer.y,
-        })
-      }
-    })
-    onlineIds.value = [...ids]
-    pointers.value = pts
-  }
-
-  let lastPointerSent = 0
-  /** broadcast this client's cursor in board-content coordinates (null = left the board) */
-  function setPointer(x: number | null, y = 0) {
-    if (!provider) return
-    if (x === null) {
-      provider.awareness.setLocalStateField('pointer', null)
-      return
-    }
-    const now = Date.now()
-    if (now - lastPointerSent < 60) return
-    lastPointerSent = now
-    provider.awareness.setLocalStateField('pointer', { x: Math.round(x), y: Math.round(y) })
-  }
-
-  function destroy() {
-    destroyed = true
-    provider?.destroy()
-    provider = null
-    persistence?.destroy()
-    persistence = null
-    doc.destroy()
-  }
+  const columnsApi = createRoomColumns({ doc, columnsMap, cardsMap, columns, isOwner })
+  const cardsApi = createRoomCards({ doc, cardsMap, columnsMap, cards, voting, uid, name })
+  const votingApi = createRoomVoting({
+    code, doc, metaMap, votesMap, historyMap,
+    cards, votes, history, voting, sharedViewRound, isOwner,
+  })
 
   // ---- derived state ----
-  const isOwner = computed(() => !!ownerToken && !!ownerId.value && ownerToken === ownerId.value)
-
   const participants = computed<ParticipantItem[]>(() =>
     onlineIds.value.map(id => ({
       id,
@@ -205,11 +92,6 @@ export function createRoomStore(code: string, roomName: string) {
     })),
   )
 
-  const votingApi = createRoomVoting({
-    code, doc, metaMap, votesMap, historyMap,
-    cards, votes, history, voting, sharedViewRound, isOwner,
-  })
-
   // ---- identity actions ----
   function setName(newName: string) {
     const clean = newName.trim().slice(0, 24)
@@ -218,14 +100,8 @@ export function createRoomStore(code: string, roomName: string) {
     setStored(nameKey, clean)
     setStored('leancafe:lastName', clean)
     peopleMap.set(uid, { name: clean })
-    provider?.awareness.setLocalStateField('user', { id: uid, name: clean, color: myColor })
+    connection.setAwarenessUser()
   }
-
-  const { addColumn, renameColumn, resizeColumn, removeColumn, columnDescFragment }
-    = createRoomColumns({ doc, columnsMap, cardsMap, columns, isOwner })
-
-  const { cardsForColumn, autoEditCardId, addCard, bodyFragment, updateCardText, removeCard, moveNote }
-    = createRoomCards({ doc, cardsMap, columnsMap, cards, voting, uid, name })
 
   // ---- timer (owner only) ----
   function startTimer(seconds: number) {
@@ -247,6 +123,11 @@ export function createRoomStore(code: string, roomName: string) {
   const draggingCardId = ref<string | null>(null)
   const dragOverColumn = ref<string | null>(null)
 
+  function destroy() {
+    connection.destroy()
+    doc.destroy()
+  }
+
   return {
     code,
     uid,
@@ -264,29 +145,19 @@ export function createRoomStore(code: string, roomName: string) {
     isOwner,
     participants,
     sharedViewRound,
-    ...votingApi,
     draggingCardId,
     dragOverColumn,
     pointers,
     setPointer,
     connect,
     destroy,
-    cardsForColumn,
     setName,
-    addColumn,
-    renameColumn,
-    resizeColumn,
-    columnDescFragment,
-    removeColumn,
-    addCard,
-    autoEditCardId,
-    bodyFragment,
-    updateCardText,
-    removeCard,
-    moveNote,
     startTimer,
     stopTimer,
     toggleAuthors,
+    ...columnsApi,
+    ...cardsApi,
+    ...votingApi,
   }
 }
 
