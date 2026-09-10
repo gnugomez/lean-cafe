@@ -252,6 +252,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   text-align: center;
 }
 .form-error { margin: 0; color: var(--danger); font-size: 0.8125rem; }
+.name-input { width: min(16rem, 100%); text-align: center; }
 .landing-foot {
   color: var(--muted);
   font-size: 0.78125rem;
