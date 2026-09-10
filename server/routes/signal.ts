@@ -10,7 +10,6 @@ import type { Peer } from 'crossws'
 
 const topics = new Map<string, Set<Peer>>()
 const peerTopics = new Map<string, Set<string>>()
-const peers = new Map<string, Peer>()
 
 const MAX_TOPICS_PER_PEER = 32
 const MAX_TOPIC_LENGTH = 100
@@ -30,7 +29,6 @@ function send(peer: Peer, msg: unknown) {
 
 export default defineWebSocketHandler({
   open(peer) {
-    peers.set(peer.id, peer)
     peerTopics.set(peer.id, new Set())
   },
 
@@ -104,6 +102,5 @@ export default defineWebSocketHandler({
       }
     }
     peerTopics.delete(peer.id)
-    peers.delete(peer.id)
   },
 })
