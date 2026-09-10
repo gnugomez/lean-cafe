@@ -12,7 +12,13 @@ const topics = new Map<string, Set<Peer>>()
 const peerTopics = new Map<string, Set<string>>()
 
 const MAX_TOPICS_PER_PEER = 32
-const MAX_TOPIC_LENGTH = 100
+// y-webrtc signaling payloads (announce/offer/answer) are a few KB; anything
+// bigger is abuse — without a cap the relay would happily broadcast messages
+// up to ws's 100 MiB default to every subscriber of a topic
+const MAX_MESSAGE_LENGTH = 64 * 1024
+// this relay only serves this app's rooms (see signalingRoomName in
+// server/utils/rooms.ts), so reject every other topic name
+const TOPIC_RE = /^leancafe-[0-9a-f]{20}$/
 
 function send(peer: Peer, msg: unknown) {
   try {
@@ -35,7 +41,9 @@ export default defineWebSocketHandler({
   message(peer, message) {
     let msg: any
     try {
-      msg = JSON.parse(message.text())
+      const raw = message.text()
+      if (raw.length > MAX_MESSAGE_LENGTH) return
+      msg = JSON.parse(raw)
     } catch {
       return
     }
@@ -46,7 +54,7 @@ export default defineWebSocketHandler({
         const mine = peerTopics.get(peer.id)
         if (!mine) return
         for (const topicName of Array.isArray(msg.topics) ? msg.topics : []) {
-          if (typeof topicName !== 'string' || topicName.length > MAX_TOPIC_LENGTH) continue
+          if (typeof topicName !== 'string' || !TOPIC_RE.test(topicName)) continue
           if (mine.size >= MAX_TOPICS_PER_PEER) break
           let topic = topics.get(topicName)
           if (!topic) {
