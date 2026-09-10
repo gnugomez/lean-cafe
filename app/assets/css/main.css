@@ -3,11 +3,34 @@
   --ink: #1b1b1f;
   --muted: #6e6e78;
   --paper: #fdfdfc;
-  --border: #d8d8de;   /* light UI borders */
+  --border: #d8d8de;        /* light UI borders */
+  --border-strong: #c2c2ca; /* hovered / dashed borders */
   --surface: #ffffff;
-  --surface-2: #f2f2f5; /* hover */
+  --surface-2: #f2f2f5;     /* hover */
   --danger: #c92a52;
-  --radius: 10px;
+  --neutral: #9a9aa4;       /* anonymized identity (also hardcoded in RemoteCursors.vue) */
+  --placeholder: rgba(110, 110, 120, 0.5); /* --muted at 50% */
+  --scrollbar-thumb: #c9c9d1;
+
+  --radius: 10px;      /* controls & notes */
+  --radius-lg: 12px;   /* panels */
+  --radius-md: 8px;    /* insets: canvas, header, pre */
+  --radius-sm: 6px;    /* small chrome: icon buttons, badges */
+  --radius-xs: 4px;    /* inline code, scrollbar thumb */
+  --radius-pill: 999px;
+
+  --shadow-crisp: 0 1px 3px rgba(27, 27, 31, 0.25); /* small raised elements */
+  --shadow-pop: 0 8px 24px rgba(27, 27, 31, 0.14);  /* floating popovers */
+  --focus-ring: 0 0 0 3px rgba(27, 27, 31, 0.08);
+
+  /* stacking layers — notes get z from JS (1..n per card, 1000 while
+     dragging; see BoardCard.vue), which must stay above the board chrome
+     and below the slash menu */
+  --z-topbar: 10;
+  --z-pop: 30;
+  --z-overlay: 40;
+  --z-cursors: 600;
+  --z-menu: 1200;
 }
 
 * { box-sizing: border-box; }
@@ -37,7 +60,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 8px rgba(27, 27, 31, 0.05);
 }
 
@@ -56,13 +79,13 @@ button { font: inherit; cursor: pointer; color: inherit; }
   text-decoration: none;
   transition: background 0.12s, border-color 0.12s, transform 0.12s, box-shadow 0.12s;
 }
-.btn:hover:not(:disabled) { background: var(--surface-2); border-color: #c2c2ca; }
+.btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-strong); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn-primary {
   background: var(--ink);
   border-color: var(--ink);
   color: #fff;
-  box-shadow: 0 1px 3px rgba(27, 27, 31, 0.25);
+  box-shadow: var(--shadow-crisp);
 }
 .btn-primary:hover:not(:disabled) { background: #32323c; border-color: #32323c; }
 .btn-big { padding: 14px 28px; font-size: 17px; }
@@ -80,7 +103,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .input:focus {
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(27, 27, 31, 0.08);
+  box-shadow: var(--focus-ring);
 }
 .input::placeholder { color: rgba(110, 110, 120, 0.6); }
 
@@ -88,7 +111,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border: none;
   background: transparent;
   color: var(--muted);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   width: 24px;
   height: 24px;
   line-height: 1;
@@ -129,7 +152,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .chip-group:focus-within {
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(27, 27, 31, 0.08);
+  box-shadow: var(--focus-ring);
 }
 .group-input {
   width: 34px;
@@ -235,7 +258,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-overlay);
   display: grid;
   place-items: center;
   background: rgba(27, 27, 31, 0.35);
@@ -263,8 +286,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
   flex-direction: column;
   gap: 10px;
   padding: 14px 16px;
-  z-index: 30;
-  box-shadow: 0 8px 24px rgba(27, 27, 31, 0.14);
+  z-index: var(--z-pop);
+  box-shadow: var(--shadow-pop);
 }
 .pop-head { display: flex; align-items: center; gap: 8px; }
 .pop-head h2 {
@@ -302,7 +325,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   font-size: 12px;
   font-weight: 700;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 1px 7px;
   background: var(--surface-2);
 }
@@ -319,7 +342,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  z-index: 10;
+  z-index: var(--z-topbar);
 }
 .brand { font-size: 20px; color: var(--ink); text-decoration: none; margin-right: 2px; }
 .spacer { flex: 1; }
@@ -343,7 +366,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 /* live cursors of other participants */
 .remote-cursor {
   position: absolute;
-  z-index: 600;
+  z-index: var(--z-cursors);
   pointer-events: none;
   display: flex;
   align-items: flex-start;
@@ -357,10 +380,10 @@ button { font: inherit; cursor: pointer; color: inherit; }
   font-weight: 700;
   color: #fff;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   margin-top: 11px;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(27, 27, 31, 0.25);
+  box-shadow: var(--shadow-crisp);
 }
 .column {
   position: relative;
@@ -417,7 +440,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   color: var(--muted);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 1px 8px;
 }
 /* unified column header: first line is the title, the rest is description */
@@ -428,7 +451,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   color: var(--muted);
   line-height: 1.5;
   padding: 0 2px 2px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 .col-desc h1, .col-desc h2, .col-desc h3, .col-desc h4 {
   margin: 0;
@@ -451,7 +474,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-desc code {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 3px;
   font-size: 11.5px;
 }
@@ -460,7 +483,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-desc ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
 .col-desc .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: rgba(110, 110, 120, 0.5);
+  color: var(--placeholder);
   float: left;
   height: 0;
   pointer-events: none;
@@ -471,7 +494,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   position: relative;
   flex: 1;
   min-height: 140px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   /* faint dot grid inside the board too */
   background-image: radial-gradient(circle, #ececef 1px, transparent 1.3px);
   background-size: 20px 20px;
@@ -479,7 +502,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .add-card-btn,
 .add-column-btn {
   border-style: dashed;
-  border-color: #c2c2ca;
+  border-color: var(--border-strong);
   background: transparent;
   color: var(--muted);
   font-weight: 600;
@@ -515,7 +538,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .card.editing {
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(27, 27, 31, 0.08);
+  box-shadow: var(--focus-ring);
   cursor: default;
   user-select: text;
   -webkit-user-select: text;
@@ -541,7 +564,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .card-body code {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 4px;
   font-size: 12.5px;
 }
@@ -550,7 +573,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   background: var(--ink);
   color: #f2f2f5;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 12.5px;
   overflow-x: auto;
 }
@@ -561,7 +584,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .card-body ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
 .card-body .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: rgba(110, 110, 120, 0.5);
+  color: var(--placeholder);
   float: left;
   height: 0;
   pointer-events: none;
@@ -578,7 +601,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-desc .ProseMirror > .is-empty:first-child::before,
 .col-desc .ProseMirror > .is-empty:nth-child(2):last-child::before {
   content: attr(data-placeholder);
-  color: rgba(110, 110, 120, 0.5);
+  color: var(--placeholder);
   float: left;
   height: 0;
   pointer-events: none;
@@ -627,7 +650,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   align-items: center;
   gap: 6px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 1px 3px;
   background: var(--surface);
 }
@@ -657,7 +680,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   background: var(--surface-2);
   border: 1px solid var(--border);
   padding: 1px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .res-votes { display: inline-flex; align-items: center; gap: 3px; }
 .vote-badge.hot { background: var(--ink); border-color: var(--ink); color: #fff; }
@@ -709,8 +732,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
   cursor: default;
   user-select: none;
 }
-.avatar.host { box-shadow: 0 0 0 2px var(--ink), 0 1px 3px rgba(27, 27, 31, 0.25); }
-.avatar.more { background: #9a9aa4; }
+.avatar.host { box-shadow: 0 0 0 2px var(--ink), var(--shadow-crisp); }
+.avatar.more { background: var(--neutral); }
 
 /* ---------- slash command menu ---------- */
 .slash-menu {
@@ -720,9 +743,9 @@ button { font: inherit; cursor: pointer; color: inherit; }
   padding: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(27, 27, 31, 0.14);
-  z-index: 1200;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+  z-index: var(--z-menu);
 }
 .slash-item {
   display: flex;
@@ -731,7 +754,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
   font-size: 13px;
   text-align: left;
@@ -745,8 +768,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .rounds::-webkit-scrollbar { width: 8px; height: 8px; }
 .board::-webkit-scrollbar-thumb,
 .rounds::-webkit-scrollbar-thumb {
-  background: #c9c9d1;
-  border-radius: 4px;
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-xs);
 }
 
 @media (max-width: 640px) {
