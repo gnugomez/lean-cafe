@@ -41,54 +41,51 @@ const descEditing = ref(false)
 
 function initDescEditor() {
   if (descEditor.value) return
+  // null until the header doc exists in the heading-first shape the ColumnDoc
+  // schema requires (the store's isHeaderDoc guard) — plain title until then
   const fragment = store.columnDescFragment(props.column.id)
-  if (!fragment) return // no header doc yet and we're not the host
-  try {
-    descEditor.value = new Editor({
-      editable: false,
-      extensions: [
-        ColumnDoc,
-        StarterKit.configure({
-          document: false,
-          undoRedo: false,
-          link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
-        }),
-        MarkdownLink,
-        SlashCommands,
-        Placeholder.configure({
-          showOnlyWhenEditable: false,
-          showOnlyCurrent: false,
-          placeholder: ({ node }) => node.type.name === 'heading'
-            ? 'Column title'
-            : (isOwner.value ? 'Add a description…' : ''),
-        }),
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        Collaboration.configure({ fragment }),
-      ],
-      editorProps: {
-        handleKeyDown: (_view, event) => {
-          if (slashMenuOpen.value) return false // the menu owns Escape/Enter
-          if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
-            endDescEdit()
-            return true
-          }
-          return false
-        },
+  if (!fragment) return
+  descEditor.value = new Editor({
+    editable: false,
+    extensions: [
+      ColumnDoc,
+      StarterKit.configure({
+        document: false,
+        undoRedo: false,
+        link: { openOnClick: 'whenNotEditable', autolink: true, linkOnPaste: true },
+      }),
+      MarkdownLink,
+      SlashCommands,
+      Placeholder.configure({
+        showOnlyWhenEditable: false,
+        showOnlyCurrent: false,
+        placeholder: ({ node }) => node.type.name === 'heading'
+          ? 'Column title'
+          : (isOwner.value ? 'Add a description…' : ''),
+      }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Collaboration.configure({ fragment }),
+    ],
+    editorProps: {
+      handleKeyDown: (_view, event) => {
+        if (slashMenuOpen.value) return false // the menu owns Escape/Enter
+        if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
+          endDescEdit()
+          return true
+        }
+        return false
       },
-      onUpdate: () => {
-        if (titleTimer) clearTimeout(titleTimer)
-        titleTimer = setTimeout(syncTitle, 400)
-      },
-      onBlur: () => endDescEdit(),
-    })
-  } catch (err) {
-    // schema mismatch on an un-migrated fragment: fall back to the plain title
-    console.warn('[lean-cafe] column header editor failed, showing plain title', err)
-  }
+    },
+    onUpdate: () => {
+      if (titleTimer) clearTimeout(titleTimer)
+      titleTimer = setTimeout(syncTitle, 400)
+    },
+    onBlur: () => endDescEdit(),
+  })
 }
 onMounted(initDescEditor)
-// non-hosts bind lazily once the host creates the fragment
+// non-hosts bind lazily once the host creates (or normalizes) the header doc
 watch(() => props.column.hasDesc, has => { if (has) initDescEditor() })
 onBeforeUnmount(() => {
   if (titleTimer) clearTimeout(titleTimer)

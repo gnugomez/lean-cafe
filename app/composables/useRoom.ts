@@ -8,7 +8,8 @@ export interface ColumnItem {
   title: string
   order: number
   width: number
-  /** whether a description fragment exists (host creates it lazily) */
+  /** whether a bindable header doc exists — heading-first, see isHeaderDoc()
+   * (the host creates/normalizes it lazily) */
   hasDesc: boolean
 }
 
@@ -131,7 +132,7 @@ export function createRoomStore(code: string, roomName: string) {
       title: m.get('title'),
       order: m.get('order'),
       width: m.get('width') || 300,
-      hasDesc: !!m.get('desc'),
+      hasDesc: isHeaderDoc(m.get('desc')),
     }))
     cards.value = [...cardsMap.values()].map((m, idx) => ({
       id: m.get('id'),
@@ -454,9 +455,18 @@ export function createRoomStore(code: string, roomName: string) {
     columnsMap.get(id)?.set('title', clean)
   }
 
+  /** a header fragment is bindable once its first node is the title heading —
+   * the column header editor's schema is 'heading block*', so binding anything
+   * else would throw at Editor construction */
+  function isHeaderDoc(frag: unknown): boolean {
+    if (!(frag instanceof Y.XmlFragment)) return false
+    const first = frag.get(0)
+    return first instanceof Y.XmlElement && first.nodeName === 'heading'
+  }
+
   /** unified column header document (first node = title heading, rest =
-   * description); only the host materializes/migrates the fragment, everyone
-   * else binds read-only once it exists */
+   * description); only the host materializes/normalizes the fragment, everyone
+   * else binds read-only once it has the heading-first shape */
   function columnDescFragment(columnId: string): Y.XmlFragment | null {
     const col = columnsMap.get(columnId)
     if (!col) return null
@@ -476,12 +486,12 @@ export function createRoomStore(code: string, roomName: string) {
       desc = new Y.XmlFragment()
       desc.insert(0, [makeTitleHeading()])
       col.set('desc', desc)
-    } else if (isOwner.value) {
-      // migrate description-only fragments to the heading-first schema
-      const first = desc.get(0)
-      if (!(first instanceof Y.XmlElement) || first.nodeName !== 'heading') {
-        desc.insert(0, [makeTitleHeading()])
-      }
+    } else if (!isHeaderDoc(desc)) {
+      // fragments written by pre-release dev builds lack the title heading;
+      // the host (the doc's only header writer) prepends it, everyone else
+      // waits — rebuild() flips hasDesc once the shape is right
+      if (!isOwner.value) return null
+      desc.insert(0, [makeTitleHeading()])
     }
     return desc
   }
