@@ -1,3 +1,10 @@
+Root cause upstream (yjs/y-webrtc, still unfixed on master as of 2026-09, and
+10.3.0 is the latest release): when an 'answer' signal arrives after the local
+WebrtcConn was already cleaned up (peer reconnect/room churn), the unguarded
+`existingConn.glareToken = undefined` throws a TypeError inside the signaling
+message handler, breaking all further signaling on that connection. Guarding
+the access is the whole fix; drop this patch once upstream releases one.
+
 diff --git a/node_modules/y-webrtc/dist/y-webrtc.cjs b/node_modules/y-webrtc/dist/y-webrtc.cjs
 index 71d0ec4..dcb089c 100644
 --- a/node_modules/y-webrtc/dist/y-webrtc.cjs
