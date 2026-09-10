@@ -22,7 +22,8 @@ const canvasEl = ref<HTMLElement | null>(null)
 const { height: canvasHeight } = useElementSize(canvasEl)
 const canvasWidth = computed(() => props.column.width - 24) // column padding
 
-// keep the plain-string title mirrored from the heading (dialogs, fallbacks)
+// keep the plain-string title mirrored from the heading (dialogs, fallbacks);
+// debounced only to coalesce Y.Map writes — endDescEdit() flushes synchronously
 let titleTimer: ReturnType<typeof setTimeout> | null = null
 function syncTitle() {
   if (titleTimer) {

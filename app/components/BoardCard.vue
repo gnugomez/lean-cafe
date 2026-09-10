@@ -22,6 +22,9 @@ const fakeAuthor = computed(() => fakeNameFor(props.card.id, authorName.value.le
 // ---- collaborative rich-text body (Tiptap bound to the card's Y.XmlFragment) ----
 const editing = ref(false)
 const editor = shallowRef<Editor | undefined>(undefined)
+// The plain-text mirror is debounced only to coalesce writes: every Y.Map set
+// appends to the doc's update log and re-renders all peers, so per-keystroke
+// mirroring would be pure churn. endEditing() flushes synchronously.
 let mirrorTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
