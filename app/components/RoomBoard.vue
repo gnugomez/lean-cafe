@@ -104,7 +104,6 @@ function openInvite() {
 
     <div class="island island-left">
       <RoomMenu />
-      <span class="room-code" title="Room code">{{ code }}</span>
     </div>
 
     <div class="island island-right">
