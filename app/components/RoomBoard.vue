@@ -17,6 +17,12 @@ const votingLive = computed(() => voting.value.phase === 'voting')
 const { x: mouseX, y: mouseY } = useMouse({ type: 'client' })
 // fallback for wheels outside a column canvas — BoardColumn handles its own and
 // marks them handled, so this never fights the canvas pan/zoom
+// stamping centers the sticker on the click, which needs its aspect ratio
+function onGhostLoad(e: Event) {
+  const img = e.target as HTMLImageElement
+  store.armedAspect.value = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : 1
+}
+
 function onBoardWheel(e: WheelEvent) {
   if (e.defaultPrevented || !armedSticker.value) return
   e.preventDefault()
@@ -91,6 +97,7 @@ function openInvite() {
         width: `${armedSticker.size}px`,
         transform: `translate(-50%, -50%) rotate(${armedSticker.rot}deg)`,
       }"
+      @load="onGhostLoad"
     >
 
     <BoardToolbar />

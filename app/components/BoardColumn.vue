@@ -241,7 +241,10 @@ function spawnAt(e: MouseEvent) {
 function stampAt(e: MouseEvent) {
   const armed = store.armedSticker.value
   if (!armed) return
+  // stickers are sized by width; the rendered height follows the aspect ratio,
+  // so centering needs both halves (the ghost centers the same way)
   const half = armed.size / 2
+  const halfH = (armed.size * store.armedAspect.value) / 2
   const cardEl = (e.target as HTMLElement).closest<HTMLElement>('[data-card-id]')
   if (cardEl?.dataset.cardId) {
     // offset from the card's top-left in content px — negative is fine, a
@@ -253,7 +256,7 @@ function stampAt(e: MouseEvent) {
       rot: armed.rot,
       cardId: cardEl.dataset.cardId,
       x: (e.clientX - r.left) / view.zoom - half,
-      y: (e.clientY - r.top) / view.zoom - half,
+      y: (e.clientY - r.top) / view.zoom - halfH,
     })
     return
   }
@@ -264,7 +267,7 @@ function stampAt(e: MouseEvent) {
     rot: armed.rot,
     columnId: props.column.id,
     x: p.x - half,
-    y: p.y - half,
+    y: p.y - halfH,
   })
 }
 

@@ -199,6 +199,9 @@ export function createRoomStore(code: string, roomName: string) {
   /** sticker loaded into the stamp: set by the picker, kept until Esc or a
    * tool change so one pick stamps many reactions */
   const armedSticker = ref<{ url: string, size: number, rot: number } | null>(null)
+  /** the armed image's height ÷ width, measured when the ghost loads — stickers
+   * are sized by width, so stamping needs this to center them vertically */
+  const armedAspect = ref(1)
   /** wheel over the board while armed: resize, or rotate with shift held */
   function adjustArmedSticker(deltaY: number, rotate: boolean) {
     const armed = armedSticker.value
@@ -256,6 +259,7 @@ export function createRoomStore(code: string, roomName: string) {
     dragOverColumn,
     tool,
     armedSticker,
+    armedAspect,
     adjustArmedSticker,
     columnView,
     pointers,
