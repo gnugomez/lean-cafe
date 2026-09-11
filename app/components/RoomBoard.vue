@@ -14,9 +14,11 @@ const votingLive = computed(() => voting.value.phase === 'voting')
 
 const panelOpen = ref(false)
 const showResults = ref(false)
-// when the host ends a round, the results open on every peer's screen
+// when the host ends a round, the results open on every peer's screen —
+// only on the live voting→results transition, so loading a doc that was
+// already in the results phase (reconnect, refresh) doesn't pop them open
 watch(() => voting.value.phase, (phase, oldPhase) => {
-  if (phase === 'results' && oldPhase !== 'results') showResults.value = true
+  if (phase === 'results' && oldPhase === 'voting') showResults.value = true
 })
 // the session panel and the results popover share the top-right corner:
 // the panel wins, and results come back when it closes
