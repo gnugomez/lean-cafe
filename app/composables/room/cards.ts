@@ -1,17 +1,18 @@
 import * as Y from 'yjs'
 import type { Ref } from 'vue'
-import type { CardItem, VotingState } from './types'
+import type { CardItem, StickerItem, VotingState } from './types'
 
 export function createRoomCards(opts: {
   doc: Y.Doc
   cardsMap: Y.Map<Y.Map<any>>
   columnsMap: Y.Map<Y.Map<any>>
+  stickersMap: Y.Map<StickerItem>
   cards: Ref<CardItem[]>
   voting: Ref<VotingState>
   uid: string
   name: Ref<string>
 }) {
-  const { doc, cardsMap, columnsMap, cards, voting, uid, name } = opts
+  const { doc, cardsMap, columnsMap, stickersMap, cards, voting, uid, name } = opts
 
   function cardsForColumn(columnId: string): CardItem[] {
     // stable DOM order; visual stacking is handled by each note's z
@@ -75,7 +76,15 @@ export function createRoomCards(opts: {
   function removeCard(id: string) {
     // what's being voted on must not change mid-round
     if (voting.value.phase === 'voting') return
-    cardsMap.delete(id)
+    doc.transact(() => {
+      cardsMap.delete(id)
+      // stickers stuck to the card go with it (entries may be peer junk)
+      const doomed: string[] = []
+      stickersMap.forEach((s, sid) => {
+        if ((s as StickerItem | null)?.cardId === id) doomed.push(sid)
+      })
+      doomed.forEach(sid => stickersMap.delete(sid))
+    })
   }
 
   /** place a note at a free position on a column whiteboard, on top of the stack */

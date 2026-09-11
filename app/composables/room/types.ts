@@ -20,6 +20,23 @@ export interface CardItem {
   z: number
 }
 
+/** an image reaction stamped on the board; a plain object in the doc (no Y types) */
+export interface StickerItem {
+  id: string
+  /** GIPHY media URL — allowlisted in room/stickers.ts, peers are untrusted */
+  url: string
+  /** rendered width in content px; height follows the image's aspect ratio */
+  size: number
+  /** rotation in degrees, -180..180 */
+  rot: number
+  /** anchored to a column canvas: x/y = top-left in content px … */
+  columnId?: string
+  /** … or stuck to a card: x/y = offset from the card's top-left (may be negative) */
+  cardId?: string
+  x: number
+  y: number
+}
+
 export interface ParticipantItem {
   id: string
   name: string

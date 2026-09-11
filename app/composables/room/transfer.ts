@@ -6,8 +6,9 @@ import type { JSONContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import type { Node as PMNode, Schema } from '@tiptap/pm/model'
-import type { CardItem, ColumnItem, RoundResult, VotingState } from './types'
+import type { CardItem, ColumnItem, RoundResult, StickerItem, VotingState } from './types'
 import { COLUMN_MIN_WIDTH, clampColumnWidth } from './columns'
+import { sanitizeSticker } from './stickers'
 
 /**
  * Board export/import. The file is one human-readable JSON document:
@@ -15,10 +16,13 @@ import { COLUMN_MIN_WIDTH, clampColumnWidth } from './columns'
  *   { "format": "lean-cafe-board", "version": 1, "exportedAt": …, "room": "ABC123",
  *     "columns": [{ id, title, order, width }],
  *     "cards":   [{ id, columnId, text, authorName, order, createdAt, x, y, z, body? }],
+ *     "stickers": [{ id, url, size, rot, x, y, columnId?|cardId? }],
  *     "votingHistory": [{ round, number, votesPerUser, endedAt, results }] }
  *
  * `body` is the card's rich text as ProseMirror JSON; `text` stays the plain
  * mirror and is the fallback when a body is missing or fails validation.
+ * `stickers` is optional on parse, so files written before stickers existed
+ * still import.
  * Live state (timer, current round, votes, owner token, participants) and
  * authorIds (room-local identity keys) are deliberately not exported — the
  * card display already falls back to the plain authorName string.
@@ -31,6 +35,7 @@ export const BOARD_VERSION = 1
 export const MAX_FILE_BYTES = 5 * 1024 * 1024
 const MAX_COLUMNS = 50
 const MAX_CARDS = 1000
+const MAX_STICKERS = 1000
 const MAX_ROUNDS = 200
 const MAX_RESULTS = 500
 const MAX_TITLE = 120
@@ -57,6 +62,7 @@ export interface BoardExport {
     z: number
     body?: JSONContent
   }>
+  stickers: StickerItem[]
   votingHistory: RoundResult[]
 }
 
@@ -64,6 +70,7 @@ export interface ParsedCard extends Omit<CardItem, 'authorId'> { body?: JSONCont
 export interface ParsedBoard {
   columns: ColumnItem[]
   cards: ParsedCard[]
+  stickers: StickerItem[]
   rounds: RoundResult[]
 }
 export type ParseResult = { ok: true, board: ParsedBoard } | { ok: false, error: string }
@@ -77,10 +84,11 @@ export function serializeBoard(opts: {
   code: string
   columns: ColumnItem[]
   cards: CardItem[]
+  stickers: StickerItem[]
   history: RoundResult[]
   bodyOf: (cardId: string) => Y.XmlFragment | null
 }): BoardExport {
-  const { code, columns, cards, history, bodyOf } = opts
+  const { code, columns, cards, stickers, history, bodyOf } = opts
   return {
     format: BOARD_FORMAT,
     version: BOARD_VERSION,
@@ -101,6 +109,7 @@ export function serializeBoard(opts: {
       }
       return out
     }),
+    stickers: stickers.map(s => ({ ...s })),
     votingHistory: Object.values(history).sort((a, b) => a.endedAt - b.endedAt).map(r => ({
       round: r.round, number: r.number, votesPerUser: r.votesPerUser, endedAt: r.endedAt,
       results: r.results.map(e => ({ cardId: e.cardId, text: e.text, votes: e.votes })),
@@ -172,6 +181,18 @@ export function parseBoardExport(text: string): ParseResult {
     })
   }
 
+  // stickers are optional (pre-sticker files) and re-anchored onto the fresh
+  // ids; sanitizeSticker applies the same clamps and URL allowlist as the doc
+  const rawStickers: unknown[] = Array.isArray(raw.stickers) ? raw.stickers.slice(0, MAX_STICKERS) : []
+  const stickers: StickerItem[] = []
+  for (const s of rawStickers as any[]) {
+    if (!s || typeof s !== 'object') continue
+    const columnId = typeof s.columnId === 'string' ? colIds.get(s.columnId) : undefined
+    const cardId = typeof s.cardId === 'string' ? cardIds.get(s.cardId) : undefined
+    const clean = sanitizeSticker({ ...s, id: genId(), columnId, cardId })
+    if (clean) stickers.push(clean) // dropped when its anchor isn't in the file
+  }
+
   const seenRounds = new Set<string>()
   const rounds: RoundResult[] = []
   for (const [i, r] of (rawRounds.slice(0, MAX_ROUNDS) as any[]).entries()) {
@@ -197,7 +218,7 @@ export function parseBoardExport(text: string): ParseResult {
     })
   }
 
-  return { ok: true, board: { columns, cards, rounds } }
+  return { ok: true, board: { columns, cards, stickers, rounds } }
 }
 
 // Schema for validating imported bodies — its node/mark set must match the
@@ -237,15 +258,17 @@ export function createRoomTransfer(opts: {
   cardsMap: Y.Map<Y.Map<any>>
   votesMap: Y.Map<Record<string, number>>
   historyMap: Y.Map<RoundResult>
+  stickersMap: Y.Map<StickerItem>
   columns: Ref<ColumnItem[]>
   cards: Ref<CardItem[]>
+  stickers: Ref<StickerItem[]>
   history: Ref<Record<string, RoundResult>>
   voting: Ref<VotingState>
   isOwner: ComputedRef<boolean>
 }) {
   const {
-    code, doc, metaMap, columnsMap, cardsMap, votesMap, historyMap,
-    columns, cards, history, voting, isOwner,
+    code, doc, metaMap, columnsMap, cardsMap, votesMap, historyMap, stickersMap,
+    columns, cards, stickers, history, voting, isOwner,
   } = opts
 
   /** download the board as lean-cafe-<code>-<date>.json (any participant) */
@@ -254,6 +277,7 @@ export function createRoomTransfer(opts: {
       code,
       columns: columns.value,
       cards: cards.value,
+      stickers: stickers.value,
       history: Object.values(history.value),
       bodyOf: (id) => {
         const body = cardsMap.get(id)?.get('body')
@@ -319,6 +343,7 @@ export function createRoomTransfer(opts: {
       for (const key of [...cardsMap.keys()]) cardsMap.delete(key)
       for (const key of [...votesMap.keys()]) votesMap.delete(key)
       for (const key of [...historyMap.keys()]) historyMap.delete(key)
+      for (const key of [...stickersMap.keys()]) stickersMap.delete(key)
 
       for (const col of board.columns) {
         const m = new Y.Map()
@@ -354,6 +379,8 @@ export function createRoomTransfer(opts: {
           frag.insert(0, [p])
         }
       }
+
+      for (const sticker of board.stickers) stickersMap.set(sticker.id, sticker)
 
       let latest: RoundResult | null = null
       for (const r of board.rounds) {

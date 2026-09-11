@@ -5,12 +5,13 @@ import { createRoomOwnership } from './room/ownership'
 import { createRoomConnection } from './room/connection'
 import { createRoomColumns, seedDefaultColumns } from './room/columns'
 import { createRoomCards } from './room/cards'
+import { clampStickerSize, createRoomStickers } from './room/stickers'
 import { createRoomVoting } from './room/voting'
 import { createRoomTransfer } from './room/transfer'
 
 export type {
   CardItem, ColumnItem, ParticipantItem, RemotePointer,
-  RoundResult, TimerState, VotingPhase, VotingState,
+  RoundResult, StickerItem, TimerState, VotingPhase, VotingState,
 } from './room/types'
 
 /**
@@ -23,6 +24,8 @@ export type {
  *   columns:       colId  -> Y.Map {id,title,order,width}  (owner-only writes)
  *   cards:         cardId -> Y.Map {id,columnId,text,body,authorId,authorName,order,createdAt,x,y,z}
  *                  `body`: Y.XmlFragment bound to Tiptap; `text`: plain-text mirror for result snapshots
+ *   stickers:      stickerId -> {id,url,size,rot,x,y,columnId?|cardId?}  (image
+ *                  reactions, anchored to a column canvas or stuck to a card)
  *   votes:         voterKey -> {cardId: count}  (anonymous: a random per-round key
  *                  known only to its own browser — never linked to a participant)
  *   votingHistory: roundId -> RoundResult  (archived when a round ends; never cleared by new rounds)
@@ -44,8 +47,8 @@ export function createRoomStore(code: string, roomName: string) {
   const ownerToken = getStored(ownerKey)
 
   const {
-    doc, metaMap, columnsMap, cardsMap, votesMap, historyMap, peopleMap,
-    columns, cards, votes, history, people, timer, voting, hideAuthors,
+    doc, metaMap, columnsMap, cardsMap, votesMap, historyMap, peopleMap, stickersMap,
+    columns, cards, stickers, votes, history, people, timer, voting, hideAuthors,
     sharedViewRound, ownerId, ownerUid,
   } = createRoomDoc()
 
@@ -112,15 +115,16 @@ export function createRoomStore(code: string, roomName: string) {
     connect, setPointer, setMarquee, setDragPreview,
   } = connection
 
-  const columnsApi = createRoomColumns({ doc, columnsMap, cardsMap, columns, isOwner })
-  const cardsApi = createRoomCards({ doc, cardsMap, columnsMap, cards, voting, uid, name })
+  const columnsApi = createRoomColumns({ doc, columnsMap, cardsMap, stickersMap, columns, isOwner })
+  const cardsApi = createRoomCards({ doc, cardsMap, columnsMap, stickersMap, cards, voting, uid, name })
+  const stickersApi = createRoomStickers({ stickersMap, stickers })
   const votingApi = createRoomVoting({
     code, doc, metaMap, votesMap, historyMap,
     cards, votes, history, voting, sharedViewRound, isOwner,
   })
   const transferApi = createRoomTransfer({
-    code, doc, metaMap, columnsMap, cardsMap, votesMap, historyMap,
-    columns, cards, history, voting, isOwner,
+    code, doc, metaMap, columnsMap, cardsMap, votesMap, historyMap, stickersMap,
+    columns, cards, stickers, history, voting, isOwner,
   })
 
   const participants = computed<ParticipantItem[]>(() =>
@@ -190,7 +194,24 @@ export function createRoomStore(code: string, roomName: string) {
   })
 
   // view tools — local UI, never shared
-  const tool = ref<'select' | 'hand' | 'note'>('select')
+  const tool = ref<'select' | 'hand' | 'note' | 'sticker'>('select')
+
+  /** sticker loaded into the stamp: set by the picker, kept until Esc or a
+   * tool change so one pick stamps many reactions */
+  const armedSticker = ref<{ url: string, size: number, rot: number } | null>(null)
+  /** wheel over the board while armed: resize, or rotate with shift held */
+  function adjustArmedSticker(deltaY: number, rotate: boolean) {
+    const armed = armedSticker.value
+    if (!armed) return
+    if (rotate) {
+      let rot = armed.rot + deltaY * 0.25
+      rot = ((rot + 180) % 360 + 360) % 360 - 180 // wrap into -180..180
+      armedSticker.value = { ...armed, rot }
+    } else {
+      armedSticker.value = { ...armed, size: clampStickerSize(armed.size * Math.exp(-deltaY * 0.004)) }
+    }
+  }
+  watch(tool, (t) => { if (t !== 'sticker') armedSticker.value = null })
 
   // per-column canvas view: pan offset (screen px) and zoom, local to this viewer
   const columnViews = new Map<string, { zoom: number, x: number, y: number }>()
@@ -217,6 +238,7 @@ export function createRoomStore(code: string, roomName: string) {
     peerCount,
     columns,
     cards,
+    stickers,
     votes,
     people,
     timer,
@@ -233,6 +255,8 @@ export function createRoomStore(code: string, roomName: string) {
     dragging,
     dragOverColumn,
     tool,
+    armedSticker,
+    adjustArmedSticker,
     columnView,
     pointers,
     remoteMarquees,
@@ -249,6 +273,7 @@ export function createRoomStore(code: string, roomName: string) {
     toggleAuthors,
     ...columnsApi,
     ...cardsApi,
+    ...stickersApi,
     ...votingApi,
     ...transferApi,
   }

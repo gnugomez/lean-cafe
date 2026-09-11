@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
-import type { CardItem, ColumnItem, RoundResult, TimerState, VotingState } from './types'
+import type { CardItem, ColumnItem, RoundResult, StickerItem, TimerState, VotingState } from './types'
 import { COLUMN_MIN_WIDTH, clampColumnWidth } from './columns'
+import { sanitizeSticker } from './stickers'
 
 export function createRoomDoc() {
   const doc = new Y.Doc()
@@ -10,10 +11,12 @@ export function createRoomDoc() {
   const votesMap = doc.getMap<Record<string, number>>('votes')
   const historyMap = doc.getMap<RoundResult>('votingHistory')
   const peopleMap = doc.getMap<{ name: string, color?: number }>('participants')
+  const stickersMap = doc.getMap<StickerItem>('stickers')
 
   // reactive snapshots of the doc
   const columns = ref<ColumnItem[]>([])
   const cards = ref<CardItem[]>([])
+  const stickers = ref<StickerItem[]>([])
   const votes = ref<Record<string, Record<string, number>>>({})
   const history = ref<Record<string, RoundResult>>({})
   const people = ref<Record<string, { name: string, color?: number }>>({})
@@ -57,6 +60,11 @@ export function createRoomDoc() {
         y: num(m.get('y'), 14 + (num(m.get('order'), idx) * 44) % 440),
         z: num(m.get('z'), idx + 1),
       }))
+    // plain-object entries; sanitizeSticker clamps numbers and allowlists urls
+    stickers.value = [...stickersMap.values()].flatMap((raw) => {
+      const s = sanitizeSticker(raw)
+      return s ? [s] : []
+    })
     const v: Record<string, Record<string, number>> = {}
     votesMap.forEach((val, key) => {
       const clean: Record<string, number> = {}
@@ -107,8 +115,10 @@ export function createRoomDoc() {
     votesMap,
     historyMap,
     peopleMap,
+    stickersMap,
     columns,
     cards,
+    stickers,
     votes,
     history,
     people,

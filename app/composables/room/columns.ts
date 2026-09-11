@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import type { ComputedRef, Ref } from 'vue'
-import type { ColumnItem } from './types'
+import type { ColumnItem, StickerItem } from './types'
 
 /** min fits a 220px note plus column padding; max is a generous bound that
  * still keeps a hostile peer from blowing up everyone's layout */
@@ -26,10 +26,11 @@ export function createRoomColumns(opts: {
   doc: Y.Doc
   columnsMap: Y.Map<Y.Map<any>>
   cardsMap: Y.Map<Y.Map<any>>
+  stickersMap: Y.Map<StickerItem>
   columns: Ref<ColumnItem[]>
   isOwner: ComputedRef<boolean>
 }) {
-  const { doc, columnsMap, cardsMap, columns, isOwner } = opts
+  const { doc, columnsMap, cardsMap, stickersMap, columns, isOwner } = opts
 
   function addColumn(title: string) {
     if (!isOwner.value) return
@@ -66,6 +67,14 @@ export function createRoomColumns(opts: {
         if (card.get('columnId') === id) doomed.push(cardId)
       })
       doomed.forEach(cardId => cardsMap.delete(cardId))
+      // the column's own stickers plus those stuck to its cards
+      const gone = new Set(doomed)
+      const doomedStickers: string[] = []
+      stickersMap.forEach((s, sid) => {
+        const sticker = s as StickerItem | null
+        if (sticker?.columnId === id || (sticker?.cardId && gone.has(sticker.cardId))) doomedStickers.push(sid)
+      })
+      doomedStickers.forEach(sid => stickersMap.delete(sid))
     })
   }
 
