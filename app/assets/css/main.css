@@ -798,6 +798,10 @@ button { font: inherit; cursor: pointer; color: inherit; }
   pointer-events: none;
 }
 .card-foot {
+  position: relative;
+  /* above card stickers, so a reaction never covers the author or the
+     vote/edit/delete controls */
+  z-index: 1002;
   display: flex;
   align-items: center;
   justify-content: space-between;
