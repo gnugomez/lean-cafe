@@ -90,14 +90,19 @@ const remoteRing = computed(() => {
   return `0 0 0 2px ${color}, 0 2px 6px rgba(27, 27, 31, 0.12)`
 })
 
+// a peer dragging this card streams its live position (never while we drag it)
+const remoteDragPos = computed(() =>
+  dragState.value ? undefined : store.remoteDrags.value.get(props.card.id))
+
 const noteStyle = computed(() => {
   const d = dragState.value
+  const r = remoteDragPos.value
   // screen-px drag deltas translate inside this card's zoomed canvas
   const z = store.columnView(props.card.columnId).zoom
   return {
-    left: `${props.card.x}px`,
-    top: `${props.card.y}px`,
-    zIndex: d ? 1000 : props.card.z || 1,
+    left: `${r ? r.x : props.card.x}px`,
+    top: `${r ? r.y : props.card.y}px`,
+    zIndex: d || r ? 1000 : props.card.z || 1,
     transform: d
       ? `translate(${d.dx / z}px, ${d.dy / z}px) rotate(${tilt.value}deg)`
       : `rotate(${tilt.value}deg)`,
@@ -116,7 +121,7 @@ function onCardDblClick(e: MouseEvent) {
   <article
     ref="noteEl"
     class="card"
-    :class="{ dragging: isDragging, editing, selected: isSelected }"
+    :class="{ dragging: isDragging, 'remote-dragging': !!remoteDragPos, editing, selected: isSelected }"
     :style="noteStyle"
     :data-card-id="card.id"
     @pointerdown="onPointerDown"

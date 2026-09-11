@@ -108,7 +108,8 @@ export function createRoomStore(code: string, roomName: string) {
   })
   const {
     connected, loaded, peerCount, onlineIds, pointers,
-    remoteSelections, remoteMarquees, connect, setPointer, setMarquee,
+    remoteSelections, remoteMarquees, remoteDrags,
+    connect, setPointer, setMarquee, setDragPreview,
   } = connection
 
   const columnsApi = createRoomColumns({ doc, columnsMap, cardsMap, columns, isOwner })
@@ -236,8 +237,10 @@ export function createRoomStore(code: string, roomName: string) {
     pointers,
     remoteMarquees,
     remoteSelectedBy,
+    remoteDrags,
     setPointer,
     setMarquee,
+    setDragPreview,
     connect,
     destroy,
     setName,

@@ -570,8 +570,9 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-resize {
   position: absolute;
   top: 0;
-  right: -5px;
-  width: 10px;
+  /* spans the 14px board gap, so the line centers between the columns */
+  right: -14px;
+  width: 14px;
   height: 100%;
   cursor: col-resize;
   touch-action: none;
@@ -693,10 +694,15 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .card:active { cursor: grabbing; }
 .card.selected { box-shadow: 0 0 0 2px var(--ink), 0 2px 6px rgba(27, 27, 31, 0.12); }
-.card.dragging {
+.card.dragging,
+.card.remote-dragging {
   pointer-events: none;
   opacity: 0.95;
   box-shadow: 0 14px 30px rgba(27, 27, 31, 0.22);
+}
+/* peers' drag positions arrive throttled — interpolate like remote cursors */
+.card.remote-dragging {
+  transition: left 0.08s linear, top 0.08s linear;
 }
 .card.editing {
   border-color: var(--ink);

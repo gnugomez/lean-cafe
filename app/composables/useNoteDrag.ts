@@ -34,7 +34,10 @@ export function useNoteDrag(opts: {
     window.removeEventListener('pointercancel', onPointerUp)
     window.removeEventListener('blur', onWindowBlur)
     activePointerId = null
-    if (dragging.value?.anchor === opts.card().id) dragging.value = null
+    if (dragging.value?.anchor === opts.card().id) {
+      dragging.value = null
+      store.setDragPreview(null)
+    }
     dragOverColumn.value = null
   }
 
@@ -78,6 +81,15 @@ export function useNoteDrag(opts: {
     if (dragging.value) {
       dragging.value.dx = mx
       dragging.value.dy = my
+      // peers watch the cards move live (content px, throttled in the setter)
+      const entries: Record<string, { x: number, y: number }> = {}
+      for (const id of dragging.value.ids) {
+        const c = store.cards.value.find(cc => cc.id === id)
+        if (!c) continue
+        const z = store.columnView(c.columnId).zoom
+        entries[id] = { x: c.x + mx / z, y: c.y + my / z }
+      }
+      store.setDragPreview(entries)
     }
     // highlight only a column the anchor card would move into, not its own
     const overId = columnAt(e.clientX, e.clientY)?.dataset.columnId ?? null

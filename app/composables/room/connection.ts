@@ -25,6 +25,8 @@ export function createRoomConnection(opts: {
   /** other participants' live card selections and rubber-band rectangles */
   const remoteSelections = ref<RemoteSelection[]>([])
   const remoteMarquees = ref<RemoteMarquee[]>([])
+  /** cards peers are dragging right now: cardId -> live position (content px) */
+  const remoteDrags = ref<Map<string, { x: number, y: number }>>(new Map())
 
   let provider: WebrtcProvider | null = null
   let persistence: IndexeddbPersistence | null = null
@@ -103,6 +105,7 @@ export function createRoomConnection(opts: {
     const pts: RemotePointer[] = []
     const sels: RemoteSelection[] = []
     const mqs: RemoteMarquee[] = []
+    const drags = new Map<string, { x: number, y: number }>()
     // awareness states are peer-controlled: check types and clamp coordinates
     // so a hostile peer can't blow up the UI (canvases clip, but be strict)
     const coord = (v: unknown): number | null =>
@@ -144,11 +147,25 @@ export function createRoomConnection(opts: {
           mqs.push({ id: user.id, col: mq.col.slice(0, 64), x, y, w, h })
         }
       }
+      const dr = state.drag
+      if (dr && typeof dr === 'object' && !Array.isArray(dr)) {
+        let n = 0
+        for (const [cardId, p] of Object.entries(dr as Record<string, unknown>)) {
+          if (n >= 200) break
+          if (!cardId || cardId.length > 64) continue
+          const x = coord((p as any)?.x)
+          const y = coord((p as any)?.y)
+          if (x === null || y === null) continue
+          if (!drags.has(cardId)) drags.set(cardId, { x, y })
+          n++
+        }
+      }
     })
     onlineIds.value = [...ids]
     pointers.value = pts
     remoteSelections.value = sels
     remoteMarquees.value = mqs
+    remoteDrags.value = drags
   }
 
   let lastPointerSent = 0
@@ -190,6 +207,24 @@ export function createRoomConnection(opts: {
     })
   }
 
+  let lastDragSent = 0
+  /** broadcast live positions of the cards this client is dragging (null = drag ended) */
+  function setDragPreview(entries: Record<string, { x: number, y: number }> | null) {
+    if (!provider) return
+    if (!entries) {
+      provider.awareness.setLocalStateField('drag', null)
+      return
+    }
+    const now = Date.now()
+    if (now - lastDragSent < 60) return
+    lastDragSent = now
+    const rounded: Record<string, { x: number, y: number }> = {}
+    for (const [id, p] of Object.entries(entries)) {
+      rounded[id] = { x: Math.round(p.x), y: Math.round(p.y) }
+    }
+    provider.awareness.setLocalStateField('drag', rounded)
+  }
+
   function destroy() {
     destroyed = true
     provider?.destroy()
@@ -206,11 +241,13 @@ export function createRoomConnection(opts: {
     pointers,
     remoteSelections,
     remoteMarquees,
+    remoteDrags,
     connect,
     destroy,
     setPointer,
     setSelection,
     setMarquee,
+    setDragPreview,
     setAwarenessUser,
   }
 }

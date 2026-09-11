@@ -11,7 +11,8 @@ const isTarget = computed(() => dragOverColumn.value === props.column.id)
 // note stays visible on its way to another column
 const isDragSource = computed(() => {
   const ids = store.dragging.value?.ids
-  return !!ids && displayCards.value.some(c => ids.includes(c.id))
+  const remote = store.remoteDrags.value
+  return displayCards.value.some(c => ids?.includes(c.id) || remote.has(c.id))
 })
 
 // this viewer's window into the column's infinite canvas (pan px + zoom)
