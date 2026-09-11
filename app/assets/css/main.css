@@ -631,13 +631,18 @@ button { font: inherit; cursor: pointer; color: inherit; }
   inset: 0;
   transform-origin: 0 0;
 }
-/* edge fades hinting at notes outside the viewport */
+/* soft white fade at the viewport edges — notes sitting outside melt into it */
 .edge-hint {
   position: absolute;
   inset: 0;
   z-index: 2;
   border-radius: var(--radius-md);
   pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--surface), transparent 20px),
+    linear-gradient(to left, var(--surface), transparent 20px),
+    linear-gradient(to bottom, var(--surface), transparent 20px),
+    linear-gradient(to top, var(--surface), transparent 20px);
 }
 /* rubber-band selection rectangle */
 .marquee {

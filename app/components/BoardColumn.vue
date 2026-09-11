@@ -101,12 +101,21 @@ function startMarquee(e: PointerEvent) {
     const cy = ev.clientY - r.top
     if (!dragged && Math.hypot(cx - sx, cy - sy) < 4) return
     dragged = true
-    marquee.value = {
+    const m = {
       x: Math.min(sx, cx),
       y: Math.min(sy, cy),
       w: Math.abs(cx - sx),
       h: Math.abs(cy - sy),
     }
+    marquee.value = m
+    // peers see the rectangle too, in content coordinates
+    store.setMarquee(
+      props.column.id,
+      (m.x - view.x) / view.zoom,
+      (m.y - view.y) / view.zoom,
+      m.w / view.zoom,
+      m.h / view.zoom,
+    )
   }
   const onUp = () => {
     canvas.removeEventListener('pointermove', onMove)
@@ -129,43 +138,13 @@ function startMarquee(e: PointerEvent) {
       store.clearSelection() // plain click on empty space
     }
     marquee.value = null
+    store.setMarquee(null)
   }
   canvas.addEventListener('pointermove', onMove)
   canvas.addEventListener('pointerup', onUp)
   canvas.addEventListener('pointercancel', onUp)
 }
 
-// edge fades hint at notes sitting (partly) outside the visible viewport
-const canvasEl = ref<HTMLElement | null>(null)
-const { width: canvasW, height: canvasH } = useElementSize(canvasEl)
-const edgeHintStyle = computed(() => {
-  const W = canvasW.value
-  const H = canvasH.value
-  if (!W || !H) return null
-  const draggingIds = store.dragging.value?.ids
-  let left = false
-  let right = false
-  let top = false
-  let bottom = false
-  for (const c of displayCards.value) {
-    if (draggingIds?.includes(c.id)) continue
-    // nominal note footprint — a hint, not a measurement
-    const x1 = c.x * view.zoom + view.x
-    const y1 = c.y * view.zoom + view.y
-    const x2 = x1 + 220 * view.zoom
-    const y2 = y1 + 110 * view.zoom
-    left ||= x1 < 0
-    right ||= x2 > W
-    top ||= y1 < 0
-    bottom ||= y2 > H
-  }
-  const fades: string[] = []
-  if (left) fades.push('linear-gradient(to right, rgba(27, 27, 31, 0.10), transparent 24px)')
-  if (right) fades.push('linear-gradient(to left, rgba(27, 27, 31, 0.10), transparent 24px)')
-  if (top) fades.push('linear-gradient(to bottom, rgba(27, 27, 31, 0.10), transparent 24px)')
-  if (bottom) fades.push('linear-gradient(to top, rgba(27, 27, 31, 0.10), transparent 24px)')
-  return fades.length ? { backgroundImage: fades.join(', ') } : null
-})
 
 // live cursor broadcast in column-content coordinates
 function onCanvasPointerMove(e: PointerEvent) {
@@ -278,7 +257,6 @@ function onResizeStart(e: PointerEvent) {
     </header>
 
     <div
-      ref="canvasEl"
       class="col-canvas"
       title="Double-click to add a card"
       :style="gridStyle"
@@ -293,7 +271,7 @@ function onResizeStart(e: PointerEvent) {
         <RemoteCursors :column-id="column.id" :zoom="view.zoom" />
         <BoardCard v-for="card in displayCards" :key="card.id" :card="card" />
       </div>
-      <div v-if="edgeHintStyle" class="edge-hint" :style="edgeHintStyle" />
+      <div class="edge-hint" />
       <div
         v-if="marquee"
         class="marquee"

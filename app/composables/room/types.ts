@@ -37,6 +37,21 @@ export interface RemotePointer {
   y: number
 }
 
+export interface RemoteSelection {
+  id: string
+  cardIds: string[]
+}
+
+/** a peer's live rubber-band rectangle, in column content px */
+export interface RemoteMarquee {
+  id: string
+  col: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface TimerState {
   endsAt: number
   total: number

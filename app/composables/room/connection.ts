@@ -2,7 +2,7 @@ import type * as Y from 'yjs'
 import type { Ref } from 'vue'
 import type { WebrtcProvider } from 'y-webrtc'
 import type { IndexeddbPersistence } from 'y-indexeddb'
-import type { RemotePointer } from './types'
+import type { RemoteMarquee, RemotePointer, RemoteSelection } from './types'
 
 export function createRoomConnection(opts: {
   code: string
@@ -22,6 +22,9 @@ export function createRoomConnection(opts: {
   const onlineIds = ref<string[]>([uid])
   /** live cursors of other participants (awareness only, never persisted) */
   const pointers = ref<RemotePointer[]>([])
+  /** other participants' live card selections and rubber-band rectangles */
+  const remoteSelections = ref<RemoteSelection[]>([])
+  const remoteMarquees = ref<RemoteMarquee[]>([])
 
   let provider: WebrtcProvider | null = null
   let persistence: IndexeddbPersistence | null = null
@@ -98,30 +101,54 @@ export function createRoomConnection(opts: {
     if (!provider) return
     const ids = new Set<string>([uid])
     const pts: RemotePointer[] = []
+    const sels: RemoteSelection[] = []
+    const mqs: RemoteMarquee[] = []
     // awareness states are peer-controlled: check types and clamp coordinates
     // so a hostile peer can't blow up the UI (canvases clip, but be strict)
     const coord = (v: unknown): number | null =>
       typeof v === 'number' && Number.isFinite(v) ? Math.min(100000, Math.max(-100000, v)) : null
+    const size = (v: unknown): number | null =>
+      typeof v === 'number' && Number.isFinite(v) ? Math.min(200000, Math.max(0, v)) : null
     provider.awareness.getStates().forEach((state) => {
       const user = state?.user
       if (typeof user?.id !== 'string' || !user.id) return
       ids.add(user.id)
-      if (user.id !== uid && state.pointer) {
+      if (user.id === uid) return
+      if (state.pointer) {
         const x = coord(state.pointer.x)
         const y = coord(state.pointer.y)
         const col = state.pointer.col
-        if (x === null || y === null || typeof col !== 'string' || !col) return
-        pts.push({
-          id: user.id,
-          name: (typeof user.name === 'string' && user.name.slice(0, 32)) || 'Anonymous',
-          col: col.slice(0, 64),
-          x,
-          y,
-        })
+        if (x !== null && y !== null && typeof col === 'string' && col) {
+          pts.push({
+            id: user.id,
+            name: (typeof user.name === 'string' && user.name.slice(0, 32)) || 'Anonymous',
+            col: col.slice(0, 64),
+            x,
+            y,
+          })
+        }
+      }
+      if (Array.isArray(state.select)) {
+        const cardIds = state.select
+          .filter((s: unknown): s is string => typeof s === 'string' && s.length > 0 && s.length <= 64)
+          .slice(0, 200)
+        if (cardIds.length) sels.push({ id: user.id, cardIds })
+      }
+      const mq = state.marquee
+      if (mq && typeof mq.col === 'string' && mq.col) {
+        const x = coord(mq.x)
+        const y = coord(mq.y)
+        const w = size(mq.w)
+        const h = size(mq.h)
+        if (x !== null && y !== null && w !== null && h !== null) {
+          mqs.push({ id: user.id, col: mq.col.slice(0, 64), x, y, w, h })
+        }
       }
     })
     onlineIds.value = [...ids]
     pointers.value = pts
+    remoteSelections.value = sels
+    remoteMarquees.value = mqs
   }
 
   let lastPointerSent = 0
@@ -138,6 +165,31 @@ export function createRoomConnection(opts: {
     provider.awareness.setLocalStateField('pointer', { col, x: Math.round(x), y: Math.round(y) })
   }
 
+  /** broadcast which cards this client has selected */
+  function setSelection(cardIds: string[]) {
+    provider?.awareness.setLocalStateField('select', cardIds.length ? cardIds.slice(0, 200) : null)
+  }
+
+  let lastMarqueeSent = 0
+  /** broadcast this client's rubber-band rectangle in column-content px (null = done) */
+  function setMarquee(col: string | null, x = 0, y = 0, w = 0, h = 0) {
+    if (!provider) return
+    if (col === null) {
+      provider.awareness.setLocalStateField('marquee', null)
+      return
+    }
+    const now = Date.now()
+    if (now - lastMarqueeSent < 60) return
+    lastMarqueeSent = now
+    provider.awareness.setLocalStateField('marquee', {
+      col,
+      x: Math.round(x),
+      y: Math.round(y),
+      w: Math.round(w),
+      h: Math.round(h),
+    })
+  }
+
   function destroy() {
     destroyed = true
     provider?.destroy()
@@ -152,9 +204,13 @@ export function createRoomConnection(opts: {
     peerCount,
     onlineIds,
     pointers,
+    remoteSelections,
+    remoteMarquees,
     connect,
     destroy,
     setPointer,
+    setSelection,
+    setMarquee,
     setAwarenessUser,
   }
 }

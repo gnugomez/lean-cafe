@@ -106,7 +106,10 @@ export function createRoomStore(code: string, roomName: string) {
       removeStored(seedKey)
     },
   })
-  const { connected, loaded, peerCount, onlineIds, pointers, connect, setPointer } = connection
+  const {
+    connected, loaded, peerCount, onlineIds, pointers,
+    remoteSelections, remoteMarquees, connect, setPointer, setMarquee,
+  } = connection
 
   const columnsApi = createRoomColumns({ doc, columnsMap, cardsMap, columns, isOwner })
   const cardsApi = createRoomCards({ doc, cardsMap, columnsMap, cards, voting, uid, name })
@@ -172,6 +175,19 @@ export function createRoomStore(code: string, roomName: string) {
   const dragging = ref<{ anchor: string, ids: string[], dx: number, dy: number } | null>(null)
   const dragOverColumn = ref<string | null>(null)
 
+  // peers see each other's selections live
+  watch(selectedCardIds, ids => connection.setSelection([...ids]))
+  /** cardId -> the peer (first wins) who has it selected */
+  const remoteSelectedBy = computed(() => {
+    const m = new Map<string, string>()
+    for (const s of remoteSelections.value) {
+      for (const cardId of s.cardIds) {
+        if (!m.has(cardId)) m.set(cardId, s.id)
+      }
+    }
+    return m
+  })
+
   // view tools — local UI, never shared
   const tool = ref<'select' | 'hand' | 'note'>('select')
 
@@ -218,7 +234,10 @@ export function createRoomStore(code: string, roomName: string) {
     tool,
     columnView,
     pointers,
+    remoteMarquees,
+    remoteSelectedBy,
     setPointer,
+    setMarquee,
     connect,
     destroy,
     setName,

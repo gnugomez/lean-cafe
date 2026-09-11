@@ -1,9 +1,10 @@
 <script setup lang="ts">
 const props = defineProps<{ columnId: string, zoom: number }>()
 const store = useRoomStore()
-const { pointers, hideAuthors } = store
+const { pointers, remoteMarquees, hideAuthors } = store
 
 const here = computed(() => pointers.value.filter(p => p.col === props.columnId))
+const marquees = computed(() => remoteMarquees.value.filter(m => m.col === props.columnId))
 
 // neutral cursors while authors are hidden, so colors can't be matched to author dots
 function cursorColor(id: string) {
@@ -12,6 +13,19 @@ function cursorColor(id: string) {
 </script>
 
 <template>
+  <div
+    v-for="m in marquees"
+    :key="`mq-${m.id}`"
+    class="marquee"
+    :style="{
+      left: `${m.x}px`,
+      top: `${m.y}px`,
+      width: `${m.w}px`,
+      height: `${m.h}px`,
+      borderColor: cursorColor(m.id),
+      background: `color-mix(in oklab, ${cursorColor(m.id)} 10%, transparent)`,
+    }"
+  />
   <div
     v-for="p in here"
     :key="p.id"

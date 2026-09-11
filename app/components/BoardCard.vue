@@ -80,6 +80,16 @@ const tilt = computed(() => {
   return ((h % 7) - 3) * 0.5
 })
 
+// ring in the selector's color when a peer has this card selected
+// (own selection wins; neutral while authors are hidden, like cursors)
+const remoteRing = computed(() => {
+  if (isSelected.value) return null
+  const who = store.remoteSelectedBy.value.get(props.card.id)
+  if (!who) return null
+  const color = hideAuthors.value ? '#9a9aa4' : store.colorOf(who)
+  return `0 0 0 2px ${color}, 0 2px 6px rgba(27, 27, 31, 0.12)`
+})
+
 const noteStyle = computed(() => {
   const d = dragState.value
   // screen-px drag deltas translate inside this card's zoomed canvas
@@ -91,6 +101,7 @@ const noteStyle = computed(() => {
     transform: d
       ? `translate(${d.dx / z}px, ${d.dy / z}px) rotate(${tilt.value}deg)`
       : `rotate(${tilt.value}deg)`,
+    ...(remoteRing.value ? { boxShadow: remoteRing.value } : {}),
   }
 })
 
