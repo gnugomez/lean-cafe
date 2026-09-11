@@ -701,6 +701,34 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .card:active { cursor: grabbing; }
 .card.selected { box-shadow: 0 0 0 2px var(--ink), 0 2px 6px rgba(27, 27, 31, 0.12); }
+.card.resizing { user-select: none; }
+/* corner grip: visible on hover, while selected, or mid-resize */
+.card-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1rem;
+  height: 1rem;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.card-resize::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--border-strong);
+  border-bottom: 2px solid var(--border-strong);
+  border-bottom-right-radius: 2px;
+}
+.board.select-mode .card:hover .card-resize,
+.card.selected .card-resize,
+.card.resizing .card-resize { opacity: 1; }
+.card.resizing .card-resize::after { border-color: var(--ink); }
 .card.dragging,
 .card.remote-dragging {
   pointer-events: none;

@@ -113,6 +113,38 @@ const noteStyle = computed(() => {
   }
 })
 
+// corner handle: resize the note itself (select tool only, like dragging)
+const resizing = ref(false)
+function onResizeStart(e: PointerEvent) {
+  if (e.button !== 0 || store.tool.value !== 'select') return
+  e.preventDefault()
+  e.stopPropagation() // never start a card drag from the handle
+  const el = noteEl.value
+  const handle = e.currentTarget as HTMLElement
+  if (!el) return
+  resizing.value = true
+  handle.setPointerCapture(e.pointerId)
+  const z = store.columnView(props.card.columnId).zoom
+  const rect = el.getBoundingClientRect()
+  const startW = rect.width / z
+  const startH = rect.height / z
+  const sx = e.clientX
+  const sy = e.clientY
+  const onMove = (ev: PointerEvent) => {
+    // pointer deltas are screen px; card sizes are column-content px
+    store.resizeCard(props.card.id, startW + (ev.clientX - sx) / z, startH + (ev.clientY - sy) / z)
+  }
+  const onUp = () => {
+    resizing.value = false
+    handle.removeEventListener('pointermove', onMove)
+    handle.removeEventListener('pointerup', onUp)
+    handle.removeEventListener('pointercancel', onUp)
+  }
+  handle.addEventListener('pointermove', onMove)
+  handle.addEventListener('pointerup', onUp)
+  handle.addEventListener('pointercancel', onUp)
+}
+
 function onCardDblClick(e: MouseEvent) {
   if (editing.value) return // inside the editor, double-click selects words
   if (store.tool.value !== 'select') return // other tools own the click
@@ -125,7 +157,7 @@ function onCardDblClick(e: MouseEvent) {
   <article
     ref="noteEl"
     class="card"
-    :class="{ dragging: isDragging, 'remote-dragging': !!remoteDragPos, editing, selected: isSelected }"
+    :class="{ dragging: isDragging, 'remote-dragging': !!remoteDragPos, editing, selected: isSelected, resizing }"
     :style="noteStyle"
     :data-card-id="card.id"
     @pointerdown="onPointerDown"
@@ -179,5 +211,11 @@ function onCardDblClick(e: MouseEvent) {
         </span>
       </span>
     </footer>
+    <div
+      v-if="!votingLive"
+      class="card-resize"
+      title="Drag to resize this card"
+      @pointerdown="onResizeStart"
+    />
   </article>
 </template>

@@ -116,5 +116,17 @@ export function createRoomCards(opts: {
     })
   }
 
-  return { cardsForColumn, autoEditCardId, addCard, bodyFragment, updateCardText, removeCard, moveNote }
+  /** resize a note; the stored height is a minimum, so text can still grow it */
+  function resizeCard(cardId: string, w: number, h: number) {
+    const card = cardsMap.get(cardId)
+    if (!card) return
+    const cw = clampCardW(w)
+    const ch = clampCardH(h)
+    doc.transact(() => {
+      if (card.get('w') !== cw) card.set('w', cw)
+      if (card.get('h') !== ch) card.set('h', ch)
+    })
+  }
+
+  return { cardsForColumn, autoEditCardId, addCard, bodyFragment, updateCardText, removeCard, moveNote, resizeCard }
 }
