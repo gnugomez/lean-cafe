@@ -16,3 +16,6 @@ node_modules
 # OS / editor
 .DS_Store
 *.swp
+
+# agent worktrees
+.claude/worktrees/
