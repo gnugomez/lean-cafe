@@ -22,7 +22,7 @@ export type {
  *   meta:          ownerToken (secret held by the owner's browser), ownerUid,
  *                  timer, voting, hideAuthors, displayRound
  *   columns:       colId  -> Y.Map {id,title,order,width}  (owner-only writes)
- *   cards:         cardId -> Y.Map {id,columnId,text,body,authorId,authorName,order,createdAt,x,y,z}
+ *   cards:         cardId -> Y.Map {id,columnId,text,body,authorId,authorName,order,createdAt,x,y,z,w?,h?}
  *                  `body`: Y.XmlFragment bound to Tiptap; `text`: plain-text mirror for result snapshots
  *   stickers:      stickerId -> {id,url,size,rot,x,y,columnId?|cardId?}  (image
  *                  reactions, anchored to a column canvas or stuck to a card)

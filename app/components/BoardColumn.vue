@@ -69,7 +69,9 @@ const marquee = ref<{ x: number, y: number, w: number, h: number } | null>(null)
 function onCanvasPointerDown(e: PointerEvent) {
   if (e.button !== 0) return
   if (store.tool.value === 'hand') return startPan(e)
-  if (store.tool.value === 'select' && onEmptySpace(e)) startMarquee(e)
+  if (!onEmptySpace(e)) return
+  if (store.tool.value === 'select') startMarquee(e)
+  else if (store.tool.value === 'note') startNoteDraw(e)
 }
 
 function startPan(e: PointerEvent) {
@@ -151,6 +153,55 @@ function startMarquee(e: PointerEvent) {
   canvas.addEventListener('pointercancel', onUp)
 }
 
+// note tool: drag draws the new card's rectangle (canvas px, like the marquee);
+// a plain click places a default-size card
+const noteDraw = ref<{ x: number, y: number, w: number, h: number } | null>(null)
+
+function startNoteDraw(e: PointerEvent) {
+  const canvas = e.currentTarget as HTMLElement
+  const r = canvas.getBoundingClientRect()
+  const sx = e.clientX - r.left
+  const sy = e.clientY - r.top
+  let dragged = false
+  canvas.setPointerCapture(e.pointerId)
+  const onMove = (ev: PointerEvent) => {
+    const cx = ev.clientX - r.left
+    const cy = ev.clientY - r.top
+    if (!dragged && Math.hypot(cx - sx, cy - sy) < 4) return
+    dragged = true
+    noteDraw.value = {
+      x: Math.min(sx, cx),
+      y: Math.min(sy, cy),
+      w: Math.abs(cx - sx),
+      h: Math.abs(cy - sy),
+    }
+  }
+  const onUp = (ev: PointerEvent) => {
+    canvas.removeEventListener('pointermove', onMove)
+    canvas.removeEventListener('pointerup', onUp)
+    canvas.removeEventListener('pointercancel', onUp)
+    const m = noteDraw.value
+    noteDraw.value = null
+    if (ev.type !== 'pointerup') return // cancelled — keep the tool, place nothing
+    if (dragged && m) {
+      // rectangle -> content units; addCard clamps the size to the shared
+      // bounds, the 90 floor keeps a tiny scribble tall enough to type in
+      store.addCard(
+        props.column.id,
+        (m.x - view.x) / view.zoom,
+        (m.y - view.y) / view.zoom,
+        m.w / view.zoom,
+        Math.max(90, m.h / view.zoom),
+      )
+    } else {
+      spawnAt(ev) // plain click: default-size card at the pointer
+    }
+    store.tool.value = 'select' // one-shot, as before
+  }
+  canvas.addEventListener('pointermove', onMove)
+  canvas.addEventListener('pointerup', onUp)
+  canvas.addEventListener('pointercancel', onUp)
+}
 
 // live cursor broadcast in column-content coordinates
 function onCanvasPointerMove(e: PointerEvent) {
@@ -215,12 +266,9 @@ function stampAt(e: MouseEvent) {
   })
 }
 
-// the note tool places one card, then hands back to the select tool
+// the sticker tool stamps on click; the note tool draws in pointerdown/up
 function onCanvasClick(e: MouseEvent) {
-  if (store.tool.value === 'sticker') return stampAt(e)
-  if (store.tool.value !== 'note' || !onEmptySpace(e)) return
-  spawnAt(e)
-  store.tool.value = 'select'
+  if (store.tool.value === 'sticker') stampAt(e)
 }
 
 function onCanvasDblClick(e: MouseEvent) {
@@ -299,7 +347,6 @@ function onResizeStart(e: PointerEvent) {
       class="col-canvas"
       title="Double-click to add a card"
       :style="gridStyle"
-      @click="onCanvasClick"
       @dblclick="onCanvasDblClick"
       @wheel="onCanvasWheel"
       @pointerdown="onCanvasPointerDown"
@@ -320,6 +367,11 @@ function onResizeStart(e: PointerEvent) {
         v-if="marquee"
         class="marquee"
         :style="{ left: `${marquee.x}px`, top: `${marquee.y}px`, width: `${marquee.w}px`, height: `${marquee.h}px` }"
+      />
+      <div
+        v-if="noteDraw"
+        class="marquee draw"
+        :style="{ left: `${noteDraw.x}px`, top: `${noteDraw.y}px`, width: `${noteDraw.w}px`, height: `${noteDraw.h}px` }"
       />
     </div>
 

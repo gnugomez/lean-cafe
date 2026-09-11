@@ -656,6 +656,11 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: 2px;
   pointer-events: none;
 }
+/* note tool's drag-to-draw preview reads as an outline, not a selection */
+.marquee.draw {
+  border-style: dashed;
+  background: transparent;
+}
 /* peers' rectangles arrive throttled — interpolate like remote cursors do */
 .marquee.remote {
   transition: left 0.08s linear, top 0.08s linear, width 0.08s linear, height 0.08s linear;
@@ -679,8 +684,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
 /* ---------- sticky notes ---------- */
 .card {
   position: absolute;
-  /* px on purpose: notes are positioned/clamped in pixels by JS, which
-     assumes this width (220/224 in BoardCard.vue and BoardColumn.vue) */
+  /* default size only — a card drawn with the note tool overrides it with an
+     inline width/min-height (BoardCard.vue noteStyle) */
   width: 220px;
   display: flex;
   flex-direction: column;

@@ -18,6 +18,9 @@ export interface CardItem {
   y: number
   /** stacking order; bumped when a note is moved */
   z: number
+  /** user-drawn size in content px, shared; absent = default look (220px wide, auto height) */
+  w?: number
+  h?: number
 }
 
 /** an image reaction stamped on the board; a plain object in the doc (no Y types) */
