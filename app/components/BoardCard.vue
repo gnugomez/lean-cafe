@@ -106,6 +106,9 @@ const noteStyle = computed(() => {
     transform: d
       ? `translate(${d.dx / z}px, ${d.dy / z}px) rotate(${tilt.value}deg)`
       : `rotate(${tilt.value}deg)`,
+    // drawn size: width fixed, height only a floor — text can always grow the card
+    ...(props.card.w !== undefined ? { width: `${props.card.w}px` } : {}),
+    ...(props.card.h !== undefined ? { minHeight: `${props.card.h}px` } : {}),
     ...(remoteRing.value ? { boxShadow: remoteRing.value } : {}),
   }
 })

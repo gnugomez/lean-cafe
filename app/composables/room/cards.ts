@@ -2,6 +2,19 @@ import * as Y from 'yjs'
 import type { Ref } from 'vue'
 import type { CardItem, VotingState } from './types'
 
+/** bounds for user-drawn card sizes — shared by every writer/reader of w/h */
+export const CARD_MIN_W = 160
+export const CARD_MAX_W = 1200
+export const CARD_MIN_H = 80
+export const CARD_MAX_H = 1600
+
+export const clampCardW = (w: number) => Math.round(Math.min(CARD_MAX_W, Math.max(CARD_MIN_W, w)))
+export const clampCardH = (h: number) => Math.round(Math.min(CARD_MAX_H, Math.max(CARD_MIN_H, h)))
+
+/** optional size off an untrusted value: clamped, or undefined (= default look) */
+export const cardSize = (v: unknown, clamp: (n: number) => number) =>
+  typeof v === 'number' && Number.isFinite(v) ? clamp(v) : undefined
+
 export function createRoomCards(opts: {
   doc: Y.Doc
   cardsMap: Y.Map<Y.Map<any>>
@@ -24,8 +37,9 @@ export function createRoomCards(opts: {
   const autoEditCardId = ref<string | null>(null)
 
   /** create a note; at (x, y) when given (e.g. double-click on the board),
-   * otherwise cascaded so new notes don't fully cover each other */
-  function addCard(columnId: string, x?: number, y?: number): string | null {
+   * otherwise cascaded so new notes don't fully cover each other; w/h only
+   * when the note was drawn to a size (absent = default look) */
+  function addCard(columnId: string, x?: number, y?: number, w?: number, h?: number): string | null {
     if (!columnsMap.get(columnId)) return null
     const inColumn = cards.value.filter(c => c.columnId === columnId)
     const n = inColumn.length
@@ -43,6 +57,8 @@ export function createRoomCards(opts: {
     card.set('x', Math.round(x ?? 14 + (n % 3) * 32))
     card.set('y', Math.round(y ?? 14 + (n * 44) % 440))
     card.set('z', maxZ + 1)
+    if (w !== undefined) card.set('w', clampCardW(w))
+    if (h !== undefined) card.set('h', clampCardH(h))
     cardsMap.set(id, card)
     autoEditCardId.value = id
     return id

@@ -8,13 +8,14 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import type { Node as PMNode, Schema } from '@tiptap/pm/model'
 import type { CardItem, ColumnItem, RoundResult, VotingState } from './types'
 import { COLUMN_MIN_WIDTH, clampColumnWidth } from './columns'
+import { cardSize, clampCardH, clampCardW } from './cards'
 
 /**
  * Board export/import. The file is one human-readable JSON document:
  *
  *   { "format": "lean-cafe-board", "version": 1, "exportedAt": …, "room": "ABC123",
  *     "columns": [{ id, title, order, width }],
- *     "cards":   [{ id, columnId, text, authorName, order, createdAt, x, y, z, body? }],
+ *     "cards":   [{ id, columnId, text, authorName, order, createdAt, x, y, z, w?, h?, body? }],
  *     "votingHistory": [{ round, number, votesPerUser, endedAt, results }] }
  *
  * `body` is the card's rich text as ProseMirror JSON; `text` stays the plain
@@ -55,6 +56,8 @@ export interface BoardExport {
     x: number
     y: number
     z: number
+    w?: number
+    h?: number
     body?: JSONContent
   }>
   votingHistory: RoundResult[]
@@ -93,6 +96,8 @@ export function serializeBoard(opts: {
         id: c.id, columnId: c.columnId, text: c.text, authorName: c.authorName,
         order: c.order, createdAt: c.createdAt, x: c.x, y: c.y, z: c.z,
       }
+      if (c.w !== undefined) out.w = c.w
+      if (c.h !== undefined) out.h = c.h
       const frag = bodyOf(c.id)
       if (frag && frag.length > 0) {
         try {
@@ -168,6 +173,8 @@ export function parseBoardExport(text: string): ParseResult {
       x: Math.round(clamp(num(c.x, 14), 0, MAX_COORD)),
       y: Math.round(clamp(num(c.y, 14), 0, MAX_COORD)),
       z: Math.round(clamp(num(c.z, i + 1), 1, 1e6)),
+      w: cardSize(c.w, clampCardW),
+      h: cardSize(c.h, clampCardH),
       body,
     })
   }
@@ -341,6 +348,8 @@ export function createRoomTransfer(opts: {
         m.set('x', card.x)
         m.set('y', card.y)
         m.set('z', card.z)
+        if (card.w !== undefined) m.set('w', card.w)
+        if (card.h !== undefined) m.set('h', card.h)
         cardsMap.set(card.id, m) // attach first so the body fills in-doc
         const frag = new Y.XmlFragment()
         m.set('body', frag)

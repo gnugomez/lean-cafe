@@ -38,7 +38,7 @@ onKeyStroke(['n', 'N', 's', 'S'], e => shortcut(e, 'note'))
     <button
       class="tool-btn"
       :class="{ active: tool === 'note' }"
-      title="Add a card: click a column to place it — N"
+      title="Add a card: click a column to place it, drag to draw its size — N"
       @click="tool = tool === 'note' ? 'select' : 'note'"
     ><Icon name="lucide:sticky-note" /></button>
   </div>

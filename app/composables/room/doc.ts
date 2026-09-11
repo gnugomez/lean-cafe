@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import type { CardItem, ColumnItem, RoundResult, TimerState, VotingState } from './types'
 import { COLUMN_MIN_WIDTH, clampColumnWidth } from './columns'
+import { cardSize, clampCardH, clampCardW } from './cards'
 
 export function createRoomDoc() {
   const doc = new Y.Doc()
@@ -56,6 +57,9 @@ export function createRoomDoc() {
         x: num(m.get('x'), 14 + (idx % 2) * 36),
         y: num(m.get('y'), 14 + (num(m.get('order'), idx) * 44) % 440),
         z: num(m.get('z'), idx + 1),
+        // same bounds addCard enforces; undefined (default look) unless sane
+        w: cardSize(m.get('w'), clampCardW),
+        h: cardSize(m.get('h'), clampCardH),
       }))
     const v: Record<string, Record<string, number>> = {}
     votesMap.forEach((val, key) => {
