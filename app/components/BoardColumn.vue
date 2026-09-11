@@ -42,6 +42,11 @@ const gridStyle = computed(() => ({
 // hand tool (or ctrl/cmd) + wheel zooms toward the cursor; plain wheel pans
 function onCanvasWheel(e: WheelEvent) {
   e.preventDefault()
+  // an armed sticker owns the wheel: resize it (shift: rotate), never pan/zoom
+  if (store.armedSticker.value) {
+    store.adjustArmedSticker(e.deltaY, e.shiftKey)
+    return
+  }
   if (e.ctrlKey || e.metaKey || store.tool.value === 'hand') {
     const old = view.zoom
     const next = Math.min(2, Math.max(0.25, old * Math.exp(-e.deltaY * 0.005)))
@@ -178,8 +183,41 @@ function spawnAt(e: MouseEvent) {
   store.addCard(props.column.id, p.x - 8, p.y - 8)
 }
 
+/** stamp the armed sticker: onto the card under the cursor, else onto the
+ * canvas — centered on the click, and the tool stays armed for the next one */
+function stampAt(e: MouseEvent) {
+  const armed = store.armedSticker.value
+  if (!armed) return
+  const half = armed.size / 2
+  const cardEl = (e.target as HTMLElement).closest<HTMLElement>('[data-card-id]')
+  if (cardEl?.dataset.cardId) {
+    // offset from the card's top-left in content px — negative is fine, a
+    // sticker may hang off the edge
+    const r = cardEl.getBoundingClientRect()
+    store.addSticker({
+      url: armed.url,
+      size: armed.size,
+      rot: armed.rot,
+      cardId: cardEl.dataset.cardId,
+      x: (e.clientX - r.left) / view.zoom - half,
+      y: (e.clientY - r.top) / view.zoom - half,
+    })
+    return
+  }
+  const p = toContent(e, e.currentTarget as HTMLElement)
+  store.addSticker({
+    url: armed.url,
+    size: armed.size,
+    rot: armed.rot,
+    columnId: props.column.id,
+    x: p.x - half,
+    y: p.y - half,
+  })
+}
+
 // the note tool places one card, then hands back to the select tool
 function onCanvasClick(e: MouseEvent) {
+  if (store.tool.value === 'sticker') return stampAt(e)
   if (store.tool.value !== 'note' || !onEmptySpace(e)) return
   spawnAt(e)
   store.tool.value = 'select'
@@ -271,6 +309,11 @@ function onResizeStart(e: PointerEvent) {
       <div class="canvas-surface" :style="{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }">
         <RemoteCursors :column-id="column.id" :zoom="view.zoom" />
         <BoardCard v-for="card in displayCards" :key="card.id" :card="card" />
+        <BoardSticker
+          v-for="sticker in store.stickersForColumn(column.id)"
+          :key="sticker.id"
+          :sticker="sticker"
+        />
       </div>
       <div class="edge-hint" />
       <div

@@ -802,6 +802,86 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .card:focus-within .card-actions,
 .card.editing .card-actions { opacity: 1; max-width: 3.5rem; }
 
+/* ---------- stickers (image reactions) ---------- */
+/* placed on a column canvas (content px) or inside a card (offset from its
+   top-left), so card stickers ride along with every move */
+.sticker {
+  position: absolute;
+  /* above the notes' JS z range (1..n, 1000 while dragging) and above card
+     content, so a reaction is never swallowed */
+  z-index: 1001;
+  pointer-events: none; /* never blocks dragging, editing or stamping */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sticker-img { display: block; width: 100%; height: auto; }
+/* only the select tool touches stickers; the remove button appears on hover */
+.board.select-mode .sticker { pointer-events: auto; }
+.sticker-del {
+  position: absolute;
+  top: -0.4375rem;
+  right: -0.4375rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-crisp);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.sticker:hover .sticker-del { opacity: 1; }
+.board.sticker-mode .col-canvas,
+.board.sticker-mode .card { cursor: crosshair; }
+/* the armed sticker riding the cursor until it's stamped */
+.sticker-ghost {
+  position: fixed;
+  z-index: var(--z-cursors);
+  height: auto;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* picker popover above the tool dock */
+.sticker-pop {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(21rem, calc(100vw - 1.5rem));
+  padding: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+  box-shadow: var(--shadow-pop);
+}
+.sticker-search { padding: 0.375rem 0.625rem; font-size: 0.8125rem; }
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.25rem;
+  max-height: 15rem;
+  overflow-y: auto;
+}
+.sticker-cell {
+  border: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.sticker-cell:hover { box-shadow: 0 0 0 2px var(--ink); }
+.sticker-cell img { max-width: 100%; max-height: 100%; display: block; }
+.sticker-note {
+  margin: 0;
+  padding: 1rem 0.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: center;
+  line-height: 1.45;
+}
+.sticker-hint { margin: 0; color: var(--muted); font-size: 0.6875rem; text-align: center; }
+
 /* ---------- voting ---------- */
 .vote-stepper {
   display: inline-flex;
@@ -922,9 +1002,11 @@ button { font: inherit; cursor: pointer; color: inherit; }
 
 /* ---------- scrollbars & small screens ---------- */
 .board::-webkit-scrollbar,
-.rounds::-webkit-scrollbar { width: 8px; height: 8px; }
+.rounds::-webkit-scrollbar,
+.sticker-grid::-webkit-scrollbar { width: 8px; height: 8px; }
 .board::-webkit-scrollbar-thumb,
-.rounds::-webkit-scrollbar-thumb {
+.rounds::-webkit-scrollbar-thumb,
+.sticker-grid::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: var(--radius-xs);
 }

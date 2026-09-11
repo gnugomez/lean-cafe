@@ -8,9 +8,20 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { store.destroy() })
 
-const { columns, name, isOwner, voting, votesLeft, pastRounds, tool } = store
+const { columns, name, isOwner, voting, votesLeft, pastRounds, tool, armedSticker } = store
 const sortedColumns = computed(() => [...columns.value].sort((a, b) => a.order - b.order))
 const votingLive = computed(() => voting.value.phase === 'voting')
+
+// the armed sticker rides the cursor until it's stamped (client coords: the
+// ghost is position: fixed)
+const { x: mouseX, y: mouseY } = useMouse({ type: 'client' })
+// fallback for wheels outside a column canvas — BoardColumn handles its own and
+// marks them handled, so this never fights the canvas pan/zoom
+function onBoardWheel(e: WheelEvent) {
+  if (e.defaultPrevented || !armedSticker.value) return
+  e.preventDefault()
+  store.adjustArmedSticker(e.deltaY, e.shiftKey)
+}
 
 const panelOpen = ref(false)
 const showResults = ref(false)
@@ -53,10 +64,33 @@ function openInvite() {
 
 <template>
   <div class="room">
-    <main class="board" :class="{ 'note-mode': tool === 'note', 'hand-mode': tool === 'hand' }">
+    <main
+      class="board"
+      :class="{
+        'note-mode': tool === 'note',
+        'hand-mode': tool === 'hand',
+        'select-mode': tool === 'select',
+        'sticker-mode': tool === 'sticker',
+      }"
+      @wheel="onBoardWheel"
+    >
       <BoardColumn v-for="col in sortedColumns" :key="col.id" :column="col" />
       <AddColumn v-if="isOwner" />
     </main>
+
+    <img
+      v-if="armedSticker"
+      class="sticker-ghost"
+      :src="armedSticker.url"
+      alt=""
+      draggable="false"
+      :style="{
+        left: `${mouseX}px`,
+        top: `${mouseY}px`,
+        width: `${armedSticker.size}px`,
+        transform: `translate(-50%, -50%) rotate(${armedSticker.rot}deg)`,
+      }"
+    >
 
     <BoardToolbar />
 

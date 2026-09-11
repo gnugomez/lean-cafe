@@ -112,6 +112,7 @@ const noteStyle = computed(() => {
 
 function onCardDblClick(e: MouseEvent) {
   if (editing.value) return // inside the editor, double-click selects words
+  if (store.tool.value !== 'select') return // other tools own the click
   if ((e.target as HTMLElement).closest('button, input, a')) return
   beginEditing()
 }
@@ -127,6 +128,13 @@ function onCardDblClick(e: MouseEvent) {
     @pointerdown="onPointerDown"
     @dblclick="onCardDblClick"
   >
+    <!-- stuck to the card, so they follow every move: local drags, peers' live
+         drag previews, column changes -->
+    <BoardSticker
+      v-for="sticker in store.stickersForCard(card.id)"
+      :key="sticker.id"
+      :sticker="sticker"
+    />
     <div class="card-body">
       <EditorContent :editor="editor" />
     </div>

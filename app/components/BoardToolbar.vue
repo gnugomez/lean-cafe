@@ -1,10 +1,34 @@
 <script setup lang="ts">
 const store = useRoomStore()
-const { tool } = store
+const { tool, armedSticker } = store
 
-// Esc hands back to the select tool and drops any card selection
+const pickerOpen = ref(false)
+const island = ref<HTMLElement | null>(null)
+// the dock button toggles the picker itself, so ignore clicks inside the island
+onClickOutside(island, () => { pickerOpen.value = false })
+watch(tool, (t) => { if (t !== 'sticker') pickerOpen.value = false })
+
+function toggleStickers() {
+  if (tool.value === 'sticker') {
+    pickerOpen.value = !pickerOpen.value
+    return
+  }
+  tool.value = 'sticker'
+  pickerOpen.value = true
+}
+
+function pickSticker(s: { url: string }) {
+  armedSticker.value = { url: s.url, size: 96, rot: 0 }
+  pickerOpen.value = false
+}
+
+// Esc: put the loaded sticker down first, then the tool, then the selection
 onKeyStroke('Escape', () => {
-  if (tool.value !== 'select') tool.value = 'select'
+  if (armedSticker.value || pickerOpen.value) {
+    armedSticker.value = null
+    pickerOpen.value = false
+    tool.value = 'select'
+  } else if (tool.value !== 'select') tool.value = 'select'
   else store.clearSelection()
 })
 
@@ -18,10 +42,16 @@ function shortcut(e: KeyboardEvent, t: typeof tool.value) {
 onKeyStroke(['v', 'V'], e => shortcut(e, 'select'))
 onKeyStroke(['h', 'H'], e => shortcut(e, 'hand'))
 onKeyStroke(['n', 'N', 's', 'S'], e => shortcut(e, 'note'))
+onKeyStroke(['e', 'E'], (e) => {
+  const before = tool.value
+  shortcut(e, 'sticker')
+  if (tool.value === 'sticker' && before !== 'sticker') pickerOpen.value = true
+})
 </script>
 
 <template>
-  <div class="island tools-island">
+  <div ref="island" class="island tools-island">
+    <StickerPicker v-if="pickerOpen" @pick="pickSticker" />
     <button
       class="tool-btn"
       :class="{ active: tool === 'select' }"
@@ -41,5 +71,11 @@ onKeyStroke(['n', 'N', 's', 'S'], e => shortcut(e, 'note'))
       title="Add a card: click a column to place it — N"
       @click="tool = tool === 'note' ? 'select' : 'note'"
     ><Icon name="lucide:sticky-note" /></button>
+    <button
+      class="tool-btn"
+      :class="{ active: tool === 'sticker' }"
+      title="Stick a sticker on a card or the board — E"
+      @click="toggleStickers"
+    ><Icon name="lucide:sticker" /></button>
   </div>
 </template>
