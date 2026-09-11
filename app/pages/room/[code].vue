@@ -5,6 +5,9 @@ const { data: room, error } = await useFetch<{ code: string, room: string }>(`/a
 
 useHead({ title: room.value ? `${code} · Lean Café` : 'Lean Café' })
 
+// the landing page lists the rooms this browser has been in
+if (room.value) rememberSession(code)
+
 // This route is client-only (ssr: false), so storage is available during setup.
 const nameKey = `leancafe:${code}:name`
 const needName = ref(!getStored(nameKey))

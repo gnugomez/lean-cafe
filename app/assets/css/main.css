@@ -209,8 +209,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.125rem;
-  padding: 1.5rem 1rem;
+  gap: 2rem;
+  padding: 2.5rem 1rem;
 }
 .hero {
   width: min(27.5rem, 100%);
@@ -243,7 +243,9 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .divider::before,
 .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-.join-form { display: flex; gap: 0.625rem; width: 100%; }
+.hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.625rem; }
+.join-form { display: flex; align-items: center; gap: 0.625rem; width: 100%; }
+.join-cancel { width: 2rem; height: 2rem; }
 .code-input {
   flex: 1;
   text-transform: uppercase;
@@ -275,6 +277,130 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .foot-link:hover { color: var(--ink); }
 .center-screen { min-height: 100%; display: grid; place-items: center; padding: 1.5rem 1rem; }
+
+/* ---------- recent boards (landing) ---------- */
+.recents {
+  /* no heading — the gap in .landing is the separation */
+  width: min(46rem, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+}
+.session-grid {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: 0.75rem;
+}
+.session-card {
+  position: relative;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.session-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-pop); }
+.session-card:focus-within { border-color: var(--ink); box-shadow: var(--focus-ring); }
+/* the thumbnail carries the link, but the whole card is clickable */
+.session-open { display: block; outline: none; }
+.session-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+/* a miniature of the board: columns full height, notes where they were left */
+.session-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2.4; /* keep in sync with ASPECT in SessionThumb.vue */
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--paper);
+}
+.thumb-empty {
+  display: grid;
+  place-items: center;
+  padding: 0.5rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.thumb-col { fill: var(--surface); stroke: var(--border); }
+.thumb-col-title { fill: var(--muted); font-weight: 700; }
+.thumb-canvas { fill: var(--surface-2); }
+.thumb-note { fill: var(--surface); stroke: var(--border-strong); }
+.thumb-line { fill: rgba(110, 110, 120, 0.28); }
+/* 1px whatever the board's scale — these shrink by 10x or more */
+.thumb-col,
+.thumb-note { stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+.session-line {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  min-height: 1.75rem;
+  padding: 0 0.125rem;
+}
+.session-code {
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+}
+.session-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.0625rem 0.4375rem;
+}
+.session-when,
+.session-stats {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-when { margin-left: auto; }
+.session-line .avatars { margin-left: auto; }
+.session-line .avatar { width: 1.375rem; height: 1.375rem; font-size: 0.5625rem; }
+/* sits above the card-wide link */
+.session-forget {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.session-card:hover .session-forget,
+.session-forget:focus-visible { opacity: 1; }
+.session-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.625rem;
+}
+.session-confirm p { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--muted); }
+.session-confirm strong { color: var(--ink); letter-spacing: 0.08em; }
+.btn-danger { border-color: var(--danger); color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 /* ---------- dialogs ---------- */
 .overlay {
@@ -1113,4 +1239,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   .island { gap: var(--gap-sm); }
   .island-right { max-width: calc(100vw - 6rem); flex-wrap: wrap; }
   .hero { padding: 2rem 1.5rem; }
+  .session-grid { grid-template-columns: 1fr; }
+  .session-forget { opacity: 1; }
 }

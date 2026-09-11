@@ -9,6 +9,7 @@ A shared [Lean Coffee](https://leancoffee.org/) board. Open a room, send the lin
 - Vote anonymously. The host starts a round with a vote budget, everyone spends their votes, and the results are ranked on the board and kept in a history anyone can browse.
 - Host tools: a countdown timer, columns (add, rename, resize, delete, describe), hiding author names, and picking which round's results show on the cards.
 - Refreshing is safe. The board is cached in your browser and re-syncs when you reconnect.
+- Pick up where you left off. The home screen lists the sessions this browser has been in, each with a small map of the board, and lets you forget one when you're done with it.
 
 ## Run it locally
 
@@ -44,7 +45,7 @@ The board lives in the participants' browsers and syncs peer-to-peer over WebRTC
 - **Room codes.** Codes carry their own checksum, so the server can check them without storing anything — a room exists as soon as people meet in it.
 - **The `/signal` relay.** Browsers use it once, to find each other. The handshake it relays is encrypted with a key derived from the room code, so the relay can't read it. Any y-webrtc signaling server works instead (`NUXT_PUBLIC_SIGNALING`).
 
-Each browser keeps a local copy of the board (IndexedDB), so a refresh or a dropped connection loses nothing. If every participant clears their browser storage, the board is gone — that's the point.
+Each browser keeps a local copy of the board (IndexedDB), so a refresh or a dropped connection loses nothing. The home screen reads those copies to list your past sessions — they never leave the device, so the list differs from browser to browser. If every participant clears their browser storage, the board is gone — that's the point.
 
 ## If sync doesn't work
 

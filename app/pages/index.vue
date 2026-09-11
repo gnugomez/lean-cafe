@@ -3,6 +3,20 @@ const creating = ref(false)
 const joining = ref(false)
 const joinCode = ref('')
 const joinError = ref('')
+// joining is the rarer path: it stays behind its button until asked for
+const joinOpen = ref(false)
+const codeInput = ref<HTMLInputElement | null>(null)
+
+function openJoin() {
+  joinOpen.value = true
+  nextTick(() => codeInput.value?.focus())
+}
+
+function closeJoin() {
+  joinOpen.value = false
+  joinCode.value = ''
+  joinError.value = ''
+}
 
 async function createRoom() {
   if (creating.value) return
@@ -45,25 +59,33 @@ async function joinRoom() {
         session with your team. Cards, votes and timers sync straight between
         browsers — no accounts, nothing stored on a server.
       </p>
-      <button class="btn btn-primary btn-big" :disabled="creating" @click="createRoom">
-        {{ creating ? 'Creating room…' : 'Start a session' }}
-      </button>
-      <div class="divider"><span>or join with a code</span></div>
-      <form class="join-form" @submit.prevent="joinRoom">
+      <div v-if="!joinOpen" class="hero-actions">
+        <button class="btn btn-primary btn-big" :disabled="creating" @click="createRoom">
+          {{ creating ? 'Creating room…' : 'Start a session' }}
+        </button>
+        <button class="btn btn-big" @click="openJoin">Join with a code</button>
+      </div>
+      <form v-else class="join-form" @submit.prevent="joinRoom">
         <input
+          ref="codeInput"
           v-model="joinCode"
           class="input code-input"
           placeholder="e.g. 7QKM2X"
           maxlength="10"
           autocomplete="off"
           spellcheck="false"
+          @keydown.esc="closeJoin"
         >
-        <button class="btn" :disabled="!joinCode.trim() || joining">
+        <button class="btn btn-primary" :disabled="!joinCode.trim() || joining">
           {{ joining ? '…' : 'Join' }}
+        </button>
+        <button type="button" class="icon-btn join-cancel" title="Cancel" @click="closeJoin">
+          <Icon name="lucide:x" />
         </button>
       </form>
       <p v-if="joinError" class="form-error">{{ joinError }}</p>
     </main>
+    <RecentSessions />
     <footer class="landing-foot">
       <span>Peer-to-peer via WebRTC · board data never leaves your browsers</span>
       <a class="foot-link" href="https://github.com/gnugomez/lean-cafe" target="_blank" rel="noopener">
