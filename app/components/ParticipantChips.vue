@@ -1,8 +1,10 @@
 <script setup lang="ts">
 const store = useRoomStore()
 const { participants } = store
-const shown = computed(() => participants.value.slice(0, 6))
-const extra = computed(() => participants.value.length - shown.value.length)
+// you are shown separately (the rename button on the island)
+const others = computed(() => participants.value.filter(p => !p.isSelf))
+const shown = computed(() => others.value.slice(0, 6))
+const extra = computed(() => others.value.length - shown.value.length)
 </script>
 
 <template>

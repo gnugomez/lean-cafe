@@ -358,27 +358,96 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .round-empty { margin: 0; color: var(--muted); font-size: 0.8125rem; }
 
 /* ---------- room chrome ---------- */
-.room { height: 100%; display: flex; flex-direction: column; }
-/* bare toolbar over the canvas — the chips carry their own surfaces */
-.topbar {
-  margin: 0.75rem 0.75rem 0;
-  padding: 0.375rem 0.5rem;
+.room { position: relative; height: 100%; display: flex; flex-direction: column; }
+/* floating toolbar islands over the canvas, Figma-style */
+.island {
+  position: absolute;
+  top: 0.75rem;
+  z-index: var(--z-topbar);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  z-index: var(--z-topbar);
+  gap: var(--gap-md);
+  padding: 0.375rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
 }
-.brand { font-size: 1.25rem; color: var(--ink); text-decoration: none; margin-right: 0.125rem; }
-.spacer { flex: 1; }
-.code-chip { letter-spacing: 0.12em; font-weight: 800; }
-.chip-hint { opacity: 0.6; letter-spacing: 0; }
-.you-chip { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+.island-left { left: 0.75rem; padding: 0.375rem 0.625rem; }
+.island-right { right: 0.75rem; }
+.brand { font-size: 1.25rem; color: var(--ink); text-decoration: none; line-height: 1; }
+.room-code {
+  border: 0;
+  background: none;
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--radius-sm);
+  font-weight: 800;
+  font-size: 0.875rem;
+  letter-spacing: 0.12em;
+}
+.room-code:hover { background: var(--surface-2); }
+.self-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  border: 0;
+  background: none;
+  padding: 0.125rem;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.self-btn:hover { background: var(--surface-2); }
+.self-btn .avatar { margin-left: 0; }
+.icon-btn.active { background: var(--surface-2); color: var(--ink); }
+.votes-glance { font-variant-numeric: tabular-nums; }
+
+/* the dropdown card anchored under the right island */
+.session-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 19rem;
+  max-width: calc(100vw - 1.5rem);
+  box-shadow: var(--shadow-pop);
+}
+.sp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.5rem;
+}
+.sp-head h2 { font-size: 0.9375rem; }
+.sp-section { border-top: 1px solid var(--border); padding: 0.75rem 1rem 0.875rem; }
+.sp-title {
+  margin: 0 0 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.sp-row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-md); }
+.sp-actions { justify-content: flex-start; flex-wrap: wrap; }
+.sp-muted { margin: 0; color: var(--muted); font-size: 0.8125rem; }
+.sp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  margin-top: 0.625rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.sp-link:hover { color: var(--ink); }
 
 /* ---------- board & columns ---------- */
 /* px on purpose: remote-cursor coordinates are shared in board-box pixels
    (RoomBoard.vue), so board padding/gap must not vary with the viewer's
-   root font size */
+   root font size. Top padding clears the floating islands. */
 .board {
   position: relative;
   flex: 1;
@@ -386,7 +455,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   display: flex;
   align-items: stretch;
   gap: 14px;
-  padding: 14px 12px 20px;
+  padding: 68px 12px 20px;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -658,16 +727,11 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: var(--radius-sm);
 }
 .vote-badge.hot { background: var(--ink); border-color: var(--ink); color: #fff; }
-.voting-live { cursor: default; }
-
-/* ---------- timer & header widgets ---------- */
-.timer,
-.voting { display: flex; align-items: center; gap: var(--gap-md); }
+/* ---------- timer pill ---------- */
 .timer-pill {
   position: relative;
   overflow: hidden;
   font-variant-numeric: tabular-nums;
-  cursor: default;
   min-width: 5.375rem;
   justify-content: center;
 }
@@ -749,6 +813,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 @media (max-width: 640px) {
   .column { flex-basis: 82vw; }
   .add-column { flex-basis: 60vw; }
-  .topbar { gap: 0.625rem; }
+  .island { gap: var(--gap-sm); }
+  .island-right { max-width: calc(100vw - 6rem); flex-wrap: wrap; }
   .hero { padding: 2rem 1.5rem; }
 }

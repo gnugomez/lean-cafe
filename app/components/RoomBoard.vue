@@ -8,8 +8,9 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { store.destroy() })
 
-const { columns, name, isOwner, hideAuthors } = store
+const { columns, name, isOwner, voting, votesLeft, pastRounds } = store
 const sortedColumns = computed(() => [...columns.value].sort((a, b) => a.order - b.order))
+const votingLive = computed(() => voting.value.phase === 'voting')
 
 // live cursors: broadcast in board-content coordinates (scroll-independent)
 const boardEl = ref<HTMLElement | null>(null)
@@ -20,16 +21,12 @@ function onBoardPointer(e: PointerEvent) {
   store.setPointer(e.clientX - r.left + el.scrollLeft, e.clientY - r.top + el.scrollTop)
 }
 
-// board export/import (import is host-only; transfer.ts guards it too)
-const importInput = ref<HTMLInputElement | null>(null)
-async function onImportPicked(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = '' // so picking the same file again re-triggers change
-  if (!file) return
-  const error = await store.importBoard(file)
-  if (error) window.alert(error)
-}
+const panelOpen = ref(false)
+const showResults = ref(false)
+// when the host ends a round, the results open on every peer's screen
+watch(() => voting.value.phase, (phase, oldPhase) => {
+  if (phase === 'results' && oldPhase !== 'results') showResults.value = true
+})
 
 const showNameEdit = ref(false)
 const copied = ref(false)
@@ -46,42 +43,6 @@ async function copyLink() {
 
 <template>
   <div class="room">
-    <header class="topbar">
-      <NuxtLink to="/" class="brand" title="Lean Café">☕</NuxtLink>
-      <button class="chip code-chip" :title="copied ? 'Copied!' : 'Copy invite link'" @click="copyLink">
-        {{ code }} <Icon :name="copied ? 'lucide:check' : 'lucide:copy'" class="chip-hint" />
-      </button>
-      <div class="spacer" />
-      <TimerWidget />
-      <VotingPanel />
-      <div class="chip-group">
-        <button class="group-btn" title="Download this board as a JSON file" @click="store.exportBoard()">
-          <Icon name="lucide:download" />
-        </button>
-        <button
-          v-if="isOwner"
-          class="group-btn"
-          title="Import a board file — replaces this board for everyone"
-          @click="importInput?.click()"
-        >
-          <Icon name="lucide:upload" />
-        </button>
-      </div>
-      <input ref="importInput" type="file" accept=".json,application/json" hidden @change="onImportPicked">
-      <button
-        v-if="isOwner"
-        class="chip"
-        :title="hideAuthors ? 'Card authors are hidden — click to reveal them' : 'Card authors are visible — click to hide them'"
-        @click="store.toggleAuthors()"
-      >
-        <Icon :name="hideAuthors ? 'lucide:eye-off' : 'lucide:eye'" /> authors
-      </button>
-      <ParticipantChips />
-      <button class="chip you-chip" title="Change your name" @click="showNameEdit = true">
-        {{ name || 'Anonymous' }} <Icon name="lucide:pencil" />
-      </button>
-    </header>
-
     <main
       ref="boardEl"
       class="board"
@@ -92,6 +53,52 @@ async function copyLink() {
       <BoardColumn v-for="col in sortedColumns" :key="col.id" :column="col" />
       <AddColumn v-if="isOwner" />
     </main>
+
+    <div class="island island-left">
+      <NuxtLink to="/" class="brand" title="Lean Café">☕</NuxtLink>
+      <button class="room-code" :title="copied ? 'Copied!' : 'Copy invite link'" @click="copyLink">
+        {{ code }}
+      </button>
+    </div>
+
+    <div class="island island-right">
+      <TimerWidget @open="panelOpen = true" />
+      <button
+        v-if="votingLive"
+        class="chip votes-glance"
+        title="Voting is live — spend your votes on the cards"
+        @click="panelOpen = true"
+      ><Icon name="lucide:vote" /> {{ votesLeft }} left</button>
+      <button
+        v-else-if="pastRounds.length"
+        class="icon-btn"
+        title="Round results"
+        @click="showResults = true"
+      ><Icon name="lucide:trophy" /></button>
+      <ParticipantChips />
+      <button class="self-btn" title="Change your name" @click="showNameEdit = true">
+        <span class="avatar" :class="{ host: isOwner }" :style="{ background: store.colorOf(store.uid) }">
+          {{ initialsOf(name || 'Anonymous') }}
+        </span>
+        <Icon name="lucide:chevron-down" />
+      </button>
+      <button
+        class="icon-btn"
+        :class="{ active: panelOpen }"
+        title="Timer, voting & board"
+        @click="panelOpen = !panelOpen"
+      ><Icon name="lucide:sliders-horizontal" /></button>
+      <button class="btn btn-primary btn-sm" @click="copyLink">
+        {{ copied ? 'Copied!' : 'Invite' }}
+      </button>
+      <SessionPanel
+        v-if="panelOpen"
+        @close="panelOpen = false"
+        @results="showResults = true; panelOpen = false"
+      />
+    </div>
+
+    <ResultsDialog v-if="showResults" @close="showResults = false" />
 
     <NameDialog
       v-if="showNameEdit"
