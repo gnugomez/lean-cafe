@@ -35,6 +35,7 @@ Needs Node `^22.19.0 || ^24.11.0` (see `engines`). A multi-stage `Dockerfile` is
 | `NUXT_ROOM_SECRET` | dev secret | Signs room codes. Set a real one in production; changing it invalidates existing codes. |
 | `NUXT_PUBLIC_SIGNALING` | *(empty — use built-in `/signal`)* | Comma-separated y-webrtc signaling server URLs, e.g. `wss://signaling.example.com`. |
 | `NUXT_PUBLIC_ICE_SERVERS` | Google + Cloudflare STUN | JSON array of `RTCIceServer` entries. Add a TURN server for strict networks: `[{"urls":"stun:stun.l.google.com:19302"},{"urls":"turn:turn.example.com:3478","username":"u","credential":"p"}]` |
+| `NUXT_GIPHY_API_KEY` | *(empty — stickers off)* | [GIPHY API](https://developers.giphy.com/) key for the sticker tool. The key stays on the server; without one, the sticker picker just says it isn't set up. |
 
 ## How it works
 

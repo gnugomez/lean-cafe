@@ -10,6 +10,10 @@ export default defineNuxtConfig({
     // Secret used to derive room-code checksums and signaling room names.
     // Override in production with NUXT_ROOM_SECRET.
     roomSecret: 'lean-cafe-dev-secret',
+    // GIPHY API key for the sticker picker, kept server-side (/api/stickers
+    // proxies the search). Empty = sticker search off with a friendly 503.
+    // Override with NUXT_GIPHY_API_KEY.
+    giphyApiKey: '',
     public: {
       // Comma-separated list of y-webrtc signaling servers. Empty = use this
       // app's own built-in relay at /signal. Override with NUXT_PUBLIC_SIGNALING.
