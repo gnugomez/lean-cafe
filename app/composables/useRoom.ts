@@ -154,8 +154,22 @@ export function createRoomStore(code: string, roomName: string) {
     metaMap.set('hideAuthors', !hideAuthors.value)
   }
 
-  // drag state — local UI, never shared
-  const draggingCardId = ref<string | null>(null)
+  // selection & drag state — local UI, never shared. A drag moves every
+  // selected card together; dx/dy are screen px driven by the anchor card.
+  const selectedCardIds = ref<Set<string>>(new Set())
+  function setSelection(ids: Iterable<string>) {
+    selectedCardIds.value = new Set(ids)
+  }
+  function toggleSelected(id: string) {
+    const next = new Set(selectedCardIds.value)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    selectedCardIds.value = next
+  }
+  function clearSelection() {
+    if (selectedCardIds.value.size) selectedCardIds.value = new Set()
+  }
+  const dragging = ref<{ anchor: string, ids: string[], dx: number, dy: number } | null>(null)
   const dragOverColumn = ref<string | null>(null)
 
   // view tools — local UI, never shared
@@ -195,7 +209,11 @@ export function createRoomStore(code: string, roomName: string) {
     participants,
     colorOf,
     sharedViewRound,
-    draggingCardId,
+    selectedCardIds,
+    setSelection,
+    toggleSelected,
+    clearSelection,
+    dragging,
     dragOverColumn,
     tool,
     columnView,

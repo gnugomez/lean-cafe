@@ -41,11 +41,37 @@ watch(votingLive, (live) => {
 })
 
 const noteEl = ref<HTMLElement | null>(null)
-const { dragging, dx, dy, onPointerDown } = useNoteDrag({
+const isSelected = computed(() => store.selectedCardIds.value.has(props.card.id))
+// shift+click toggles; deselection waits for pointerup so a drag can still start
+let shiftDeselectPending = false
+const { onPointerDown } = useNoteDrag({
   noteEl,
   card: () => props.card,
   canDrag: () => !editing.value && store.tool.value === 'select',
+  onPress: (e) => {
+    shiftDeselectPending = false
+    if (e.shiftKey) {
+      if (isSelected.value) shiftDeselectPending = true
+      else store.toggleSelected(props.card.id)
+    } else if (!isSelected.value) {
+      store.setSelection([props.card.id])
+    }
+  },
+  onTap: (e) => {
+    if (e.shiftKey) {
+      if (shiftDeselectPending) store.toggleSelected(props.card.id)
+    } else {
+      store.setSelection([props.card.id])
+    }
+    shiftDeselectPending = false
+  },
 })
+
+const dragState = computed(() => {
+  const d = store.dragging.value
+  return d && d.ids.includes(props.card.id) ? d : null
+})
+const isDragging = computed(() => !!dragState.value)
 
 // subtle per-note tilt for the sticky-note feel
 const tilt = computed(() => {
@@ -54,14 +80,19 @@ const tilt = computed(() => {
   return ((h % 7) - 3) * 0.5
 })
 
-const noteStyle = computed(() => ({
-  left: `${props.card.x}px`,
-  top: `${props.card.y}px`,
-  zIndex: dragging.value ? 1000 : props.card.z || 1,
-  transform: dragging.value
-    ? `translate(${dx.value}px, ${dy.value}px) rotate(${tilt.value}deg)`
-    : `rotate(${tilt.value}deg)`,
-}))
+const noteStyle = computed(() => {
+  const d = dragState.value
+  // screen-px drag deltas translate inside this card's zoomed canvas
+  const z = store.columnView(props.card.columnId).zoom
+  return {
+    left: `${props.card.x}px`,
+    top: `${props.card.y}px`,
+    zIndex: d ? 1000 : props.card.z || 1,
+    transform: d
+      ? `translate(${d.dx / z}px, ${d.dy / z}px) rotate(${tilt.value}deg)`
+      : `rotate(${tilt.value}deg)`,
+  }
+})
 
 function onCardDblClick(e: MouseEvent) {
   if (editing.value) return // inside the editor, double-click selects words
@@ -74,8 +105,9 @@ function onCardDblClick(e: MouseEvent) {
   <article
     ref="noteEl"
     class="card"
-    :class="{ dragging, editing }"
+    :class="{ dragging: isDragging, editing, selected: isSelected }"
     :style="noteStyle"
+    :data-card-id="card.id"
     @pointerdown="onPointerDown"
     @dblclick="onCardDblClick"
   >

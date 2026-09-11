@@ -579,16 +579,17 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-resize::after {
   content: "";
   position: absolute;
-  top: 20%;
-  bottom: 20%;
-  left: 4px;
-  width: 2px;
-  border-radius: 1px;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%); /* centered on the column border */
+  width: 3px;
+  border-radius: 1.5px;
   background: transparent;
   transition: background 0.15s;
 }
-.col-resize:hover::after,
-.column.resizing .col-resize::after { background: var(--border); }
+.col-resize:hover::after { background: var(--border-strong); }
+.column.resizing .col-resize::after { background: var(--ink); }
 .column.drop-target {
   outline-color: var(--ink);
   background: var(--surface-2);
@@ -630,6 +631,23 @@ button { font: inherit; cursor: pointer; color: inherit; }
   inset: 0;
   transform-origin: 0 0;
 }
+/* edge fades hinting at notes outside the viewport */
+.edge-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: var(--radius-md);
+  pointer-events: none;
+}
+/* rubber-band selection rectangle */
+.marquee {
+  position: absolute;
+  z-index: 3;
+  border: 1px solid var(--ink);
+  background: rgba(27, 27, 31, 0.06);
+  border-radius: 2px;
+  pointer-events: none;
+}
 /* a note dragged out of its column stays visible above the other columns */
 .column.drag-source .col-canvas { overflow: visible; }
 .column.drag-source .canvas-surface { z-index: 1000; }
@@ -665,6 +683,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
   -webkit-user-select: none;
 }
 .card:active { cursor: grabbing; }
+.card.selected { box-shadow: 0 0 0 2px var(--ink), 0 2px 6px rgba(27, 27, 31, 0.12); }
 .card.dragging {
   pointer-events: none;
   opacity: 0.95;

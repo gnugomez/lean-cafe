@@ -5,19 +5,20 @@ export function useNoteDrag(opts: {
   noteEl: Ref<HTMLElement | null>
   card: () => CardItem
   canDrag?: () => boolean
+  /** pointerdown that may become a drag — adjust the selection here */
+  onPress?: (e: PointerEvent) => void
+  /** pointerup without movement (a plain click) */
+  onTap?: (e: PointerEvent) => void
 }) {
   const store = useRoomStore()
-  const { draggingCardId, dragOverColumn } = store
+  const { dragging, dragOverColumn, selectedCardIds } = store
 
-  const dragging = ref(false)
-  const dx = ref(0)
-  const dy = ref(0)
   let startX = 0
   let startY = 0
   let moved = false
 
   function columnAt(x: number, y: number): HTMLElement | null {
-    // the dragged note has pointer-events: none, so this sees what's under it
+    // dragged notes have pointer-events: none, so this sees what's under them
     return (document.elementFromPoint(x, y) as HTMLElement | null)?.closest('[data-column-id]') ?? null
   }
 
@@ -33,10 +34,7 @@ export function useNoteDrag(opts: {
     window.removeEventListener('pointercancel', onPointerUp)
     window.removeEventListener('blur', onWindowBlur)
     activePointerId = null
-    dragging.value = false
-    dx.value = 0
-    dy.value = 0
-    if (draggingCardId.value === opts.card().id) draggingCardId.value = null
+    if (dragging.value?.anchor === opts.card().id) dragging.value = null
     dragOverColumn.value = null
   }
 
@@ -47,6 +45,7 @@ export function useNoteDrag(opts: {
   function onPointerDown(e: PointerEvent) {
     if (!(opts.canDrag?.() ?? true) || e.button !== 0 || activePointerId !== null) return
     if ((e.target as HTMLElement).closest('button, input, a')) return
+    opts.onPress?.(e)
     activePointerId = e.pointerId
     startX = e.clientX
     startY = e.clientY
@@ -69,47 +68,64 @@ export function useNoteDrag(opts: {
       try {
         opts.noteEl.value?.setPointerCapture(e.pointerId)
       } catch { /* fine without */ }
+      // a selected anchor drags the whole selection, an unselected one just itself
+      const card = opts.card()
+      const ids = selectedCardIds.value.has(card.id) ? [...selectedCardIds.value] : [card.id]
+      dragging.value = { anchor: card.id, ids, dx: 0, dy: 0 }
     }
     moved = true
     e.preventDefault()
-    if (!dragging.value) {
-      dragging.value = true
-      draggingCardId.value = opts.card().id
+    if (dragging.value) {
+      dragging.value.dx = mx
+      dragging.value.dy = my
     }
-    // pointer deltas are screen px; the note translates inside its column's zoomed canvas
-    const z = store.columnView(opts.card().columnId).zoom
-    dx.value = mx / z
-    dy.value = my / z
-    // highlight only a column the card would move into, not its own
+    // highlight only a column the anchor card would move into, not its own
     const overId = columnAt(e.clientX, e.clientY)?.dataset.columnId ?? null
     dragOverColumn.value = overId !== opts.card().columnId ? overId : null
   }
 
   function onPointerUp(e: PointerEvent) {
     if (e.pointerId !== activePointerId) return
-    const el = opts.noteEl.value
-    const wasDragging = dragging.value && moved
-    const targetCol = wasDragging ? columnAt(e.clientX, e.clientY) : null
-    const noteRect = el?.getBoundingClientRect() // includes the drag transform
-    stopDrag()
-    if (!wasDragging || !el || !noteRect) return
+    const drag = dragging.value
+    const wasDragging = moved && drag?.anchor === opts.card().id
 
-    const card = opts.card()
-    const colId = targetCol?.dataset.columnId || card.columnId
-    const canvas = (targetCol || el.closest('[data-column-id]'))?.querySelector('.col-canvas')
-    if (!canvas) return
-    // rects are screen px; convert through the TARGET column's view into its
-    // content coordinates — the canvas is infinite, so no clamping
-    const v = store.columnView(colId)
-    const cRect = canvas.getBoundingClientRect()
-    const x = (noteRect.left - cRect.left - v.x) / v.zoom
-    const y = (noteRect.top - cRect.top - v.y) / v.zoom
-    store.moveNote(card.id, colId, x, y)
+    // capture rects and per-card targets BEFORE stopDrag: clearing the drag
+    // state reverts the translate transforms
+    const drops: { id: string, rect: DOMRect, colId: string }[] = []
+    if (wasDragging && drag) {
+      for (const id of drag.ids) {
+        const el = document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(id)}"]`)
+        const current = store.cards.value.find(c => c.id === id)
+        if (!el || !current) continue
+        const rect = el.getBoundingClientRect() // includes the drag transform
+        // each card lands in the column under its own center (falls back to its own)
+        const colId = columnAt(rect.left + rect.width / 2, rect.top + rect.height / 2)
+          ?.dataset.columnId || current.columnId
+        drops.push({ id, rect, colId })
+      }
+    }
+    stopDrag()
+    if (!wasDragging) {
+      opts.onTap?.(e)
+      return
+    }
+
+    for (const drop of drops) {
+      const canvas = document.querySelector(`[data-column-id="${CSS.escape(drop.colId)}"] .col-canvas`)
+      if (!canvas) continue
+      // rects are screen px; convert through the TARGET column's view into its
+      // content coordinates — the canvas is infinite, so no clamping
+      const v = store.columnView(drop.colId)
+      const cRect = canvas.getBoundingClientRect()
+      const x = (drop.rect.left - cRect.left - v.x) / v.zoom
+      const y = (drop.rect.top - cRect.top - v.y) / v.zoom
+      store.moveNote(drop.id, drop.colId, x, y)
+    }
   }
 
   onBeforeUnmount(() => {
     stopDrag() // e.g. the card was deleted by another peer mid-drag
   })
 
-  return { dragging, dx, dy, onPointerDown }
+  return { onPointerDown }
 }

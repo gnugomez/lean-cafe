@@ -9,8 +9,10 @@ const displayCards = computed(() => store.cardsForColumn(props.column.id))
 const isTarget = computed(() => dragOverColumn.value === props.column.id)
 // while one of this column's notes is dragged, the canvas unclips so the
 // note stays visible on its way to another column
-const isDragSource = computed(() =>
-  !!store.draggingCardId.value && displayCards.value.some(c => c.id === store.draggingCardId.value))
+const isDragSource = computed(() => {
+  const ids = store.dragging.value?.ids
+  return !!ids && displayCards.value.some(c => ids.includes(c.id))
+})
 
 // this viewer's window into the column's infinite canvas (pan px + zoom)
 const view = store.columnView(props.column.id)
@@ -55,9 +57,16 @@ function onCanvasWheel(e: WheelEvent) {
   }
 }
 
-// hand tool: drag to pan within the column
+// select tool: drag on empty space draws a marquee (canvas px); hand tool pans
+const marquee = ref<{ x: number, y: number, w: number, h: number } | null>(null)
+
 function onCanvasPointerDown(e: PointerEvent) {
-  if (store.tool.value !== 'hand' || e.button !== 0) return
+  if (e.button !== 0) return
+  if (store.tool.value === 'hand') return startPan(e)
+  if (store.tool.value === 'select' && onEmptySpace(e)) startMarquee(e)
+}
+
+function startPan(e: PointerEvent) {
   e.preventDefault()
   const canvas = e.currentTarget as HTMLElement
   canvas.setPointerCapture(e.pointerId)
@@ -78,6 +87,85 @@ function onCanvasPointerDown(e: PointerEvent) {
   canvas.addEventListener('pointerup', onUp)
   canvas.addEventListener('pointercancel', onUp)
 }
+
+function startMarquee(e: PointerEvent) {
+  const canvas = e.currentTarget as HTMLElement
+  const r = canvas.getBoundingClientRect()
+  const sx = e.clientX - r.left
+  const sy = e.clientY - r.top
+  const additive = e.shiftKey
+  let dragged = false
+  canvas.setPointerCapture(e.pointerId)
+  const onMove = (ev: PointerEvent) => {
+    const cx = ev.clientX - r.left
+    const cy = ev.clientY - r.top
+    if (!dragged && Math.hypot(cx - sx, cy - sy) < 4) return
+    dragged = true
+    marquee.value = {
+      x: Math.min(sx, cx),
+      y: Math.min(sy, cy),
+      w: Math.abs(cx - sx),
+      h: Math.abs(cy - sy),
+    }
+  }
+  const onUp = () => {
+    canvas.removeEventListener('pointermove', onMove)
+    canvas.removeEventListener('pointerup', onUp)
+    canvas.removeEventListener('pointercancel', onUp)
+    const m = marquee.value
+    if (dragged && m) {
+      // screen-space intersection against the rendered notes
+      const left = r.left + m.x
+      const top = r.top + m.y
+      const hits: string[] = []
+      canvas.querySelectorAll<HTMLElement>('[data-card-id]').forEach((el) => {
+        const b = el.getBoundingClientRect()
+        if (b.left < left + m.w && b.right > left && b.top < top + m.h && b.bottom > top) {
+          hits.push(el.dataset.cardId!)
+        }
+      })
+      store.setSelection(additive ? [...store.selectedCardIds.value, ...hits] : hits)
+    } else if (!additive) {
+      store.clearSelection() // plain click on empty space
+    }
+    marquee.value = null
+  }
+  canvas.addEventListener('pointermove', onMove)
+  canvas.addEventListener('pointerup', onUp)
+  canvas.addEventListener('pointercancel', onUp)
+}
+
+// edge fades hint at notes sitting (partly) outside the visible viewport
+const canvasEl = ref<HTMLElement | null>(null)
+const { width: canvasW, height: canvasH } = useElementSize(canvasEl)
+const edgeHintStyle = computed(() => {
+  const W = canvasW.value
+  const H = canvasH.value
+  if (!W || !H) return null
+  const draggingIds = store.dragging.value?.ids
+  let left = false
+  let right = false
+  let top = false
+  let bottom = false
+  for (const c of displayCards.value) {
+    if (draggingIds?.includes(c.id)) continue
+    // nominal note footprint — a hint, not a measurement
+    const x1 = c.x * view.zoom + view.x
+    const y1 = c.y * view.zoom + view.y
+    const x2 = x1 + 220 * view.zoom
+    const y2 = y1 + 110 * view.zoom
+    left ||= x1 < 0
+    right ||= x2 > W
+    top ||= y1 < 0
+    bottom ||= y2 > H
+  }
+  const fades: string[] = []
+  if (left) fades.push('linear-gradient(to right, rgba(27, 27, 31, 0.10), transparent 24px)')
+  if (right) fades.push('linear-gradient(to left, rgba(27, 27, 31, 0.10), transparent 24px)')
+  if (top) fades.push('linear-gradient(to bottom, rgba(27, 27, 31, 0.10), transparent 24px)')
+  if (bottom) fades.push('linear-gradient(to top, rgba(27, 27, 31, 0.10), transparent 24px)')
+  return fades.length ? { backgroundImage: fades.join(', ') } : null
+})
 
 // live cursor broadcast in column-content coordinates
 function onCanvasPointerMove(e: PointerEvent) {
@@ -190,6 +278,7 @@ function onResizeStart(e: PointerEvent) {
     </header>
 
     <div
+      ref="canvasEl"
       class="col-canvas"
       title="Double-click to add a card"
       :style="gridStyle"
@@ -204,6 +293,12 @@ function onResizeStart(e: PointerEvent) {
         <RemoteCursors :column-id="column.id" :zoom="view.zoom" />
         <BoardCard v-for="card in displayCards" :key="card.id" :card="card" />
       </div>
+      <div v-if="edgeHintStyle" class="edge-hint" :style="edgeHintStyle" />
+      <div
+        v-if="marquee"
+        class="marquee"
+        :style="{ left: `${marquee.x}px`, top: `${marquee.y}px`, width: `${marquee.w}px`, height: `${marquee.h}px` }"
+      />
     </div>
 
     <div
