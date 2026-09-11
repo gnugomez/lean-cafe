@@ -2,7 +2,7 @@
 import { EditorContent } from '@tiptap/vue-3'
 import type { CardItem } from '~/composables/useRoom'
 
-const props = defineProps<{ card: CardItem, canvasWidth: number, canvasHeight: number }>()
+const props = defineProps<{ card: CardItem }>()
 const store = useRoomStore()
 const { voting, myVotes, votesLeft, cardVotes, people, hideAuthors } = store
 
@@ -44,7 +44,7 @@ const noteEl = ref<HTMLElement | null>(null)
 const { dragging, dx, dy, onPointerDown } = useNoteDrag({
   noteEl,
   card: () => props.card,
-  canDrag: () => !editing.value,
+  canDrag: () => !editing.value && store.tool.value === 'select',
 })
 
 // subtle per-note tilt for the sticky-note feel
@@ -54,22 +54,9 @@ const tilt = computed(() => {
   return ((h % 7) - 3) * 0.5
 })
 
-// clamp to the current canvas at render time only — the stored position is
-// untouched, so re-widening a column restores where notes really are
-const noteSize = useElementSize(noteEl)
-const shownX = computed(() => {
-  const maxX = props.canvasWidth - (noteSize.width.value || 220) - 4
-  return Math.max(4, Math.min(props.card.x, Math.max(4, maxX)))
-})
-const shownY = computed(() => {
-  if (props.canvasHeight < 60) return props.card.y // not measured yet
-  const maxY = props.canvasHeight - (noteSize.height.value || 100) - 4
-  return Math.max(4, Math.min(props.card.y, Math.max(4, maxY)))
-})
-
 const noteStyle = computed(() => ({
-  left: `${shownX.value}px`,
-  top: `${shownY.value}px`,
+  left: `${props.card.x}px`,
+  top: `${props.card.y}px`,
   zIndex: dragging.value ? 1000 : props.card.z || 1,
   transform: dragging.value
     ? `translate(${dx.value}px, ${dy.value}px) rotate(${tilt.value}deg)`

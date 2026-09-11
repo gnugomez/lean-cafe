@@ -160,7 +160,17 @@ export function createRoomStore(code: string, roomName: string) {
 
   // view tools — local UI, never shared
   const tool = ref<'select' | 'hand' | 'note'>('select')
-  const zoom = ref(1)
+
+  // per-column canvas view: pan offset (screen px) and zoom, local to this viewer
+  const columnViews = new Map<string, { zoom: number, x: number, y: number }>()
+  function columnView(id: string) {
+    let v = columnViews.get(id)
+    if (!v) {
+      v = reactive({ zoom: 1, x: 0, y: 0 })
+      columnViews.set(id, v)
+    }
+    return v
+  }
 
   function destroy() {
     connection.destroy()
@@ -188,7 +198,7 @@ export function createRoomStore(code: string, roomName: string) {
     draggingCardId,
     dragOverColumn,
     tool,
-    zoom,
+    columnView,
     pointers,
     setPointer,
     connect,

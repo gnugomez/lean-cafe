@@ -99,9 +99,9 @@ export function createRoomConnection(opts: {
     const ids = new Set<string>([uid])
     const pts: RemotePointer[] = []
     // awareness states are peer-controlled: check types and clamp coordinates
-    // so a hostile peer can't blow up the board's scroll area or the UI
+    // so a hostile peer can't blow up the UI (canvases clip, but be strict)
     const coord = (v: unknown): number | null =>
-      typeof v === 'number' && Number.isFinite(v) ? Math.min(100000, Math.max(0, v)) : null
+      typeof v === 'number' && Number.isFinite(v) ? Math.min(100000, Math.max(-100000, v)) : null
     provider.awareness.getStates().forEach((state) => {
       const user = state?.user
       if (typeof user?.id !== 'string' || !user.id) return
@@ -109,10 +109,12 @@ export function createRoomConnection(opts: {
       if (user.id !== uid && state.pointer) {
         const x = coord(state.pointer.x)
         const y = coord(state.pointer.y)
-        if (x === null || y === null) return
+        const col = state.pointer.col
+        if (x === null || y === null || typeof col !== 'string' || !col) return
         pts.push({
           id: user.id,
           name: (typeof user.name === 'string' && user.name.slice(0, 32)) || 'Anonymous',
+          col: col.slice(0, 64),
           x,
           y,
         })
@@ -123,17 +125,17 @@ export function createRoomConnection(opts: {
   }
 
   let lastPointerSent = 0
-  /** broadcast this client's cursor in board-content coordinates (null = left the board) */
-  function setPointer(x: number | null, y = 0) {
+  /** broadcast this client's cursor in column-content coordinates (null = left the canvas) */
+  function setPointer(col: string | null, x = 0, y = 0) {
     if (!provider) return
-    if (x === null) {
+    if (col === null) {
       provider.awareness.setLocalStateField('pointer', null)
       return
     }
     const now = Date.now()
     if (now - lastPointerSent < 60) return
     lastPointerSent = now
-    provider.awareness.setLocalStateField('pointer', { x: Math.round(x), y: Math.round(y) })
+    provider.awareness.setLocalStateField('pointer', { col, x: Math.round(x), y: Math.round(y) })
   }
 
   function destroy() {

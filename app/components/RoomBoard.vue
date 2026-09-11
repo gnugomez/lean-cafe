@@ -8,65 +8,9 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { store.destroy() })
 
-const { columns, name, isOwner, voting, votesLeft, pastRounds, tool, zoom } = store
+const { columns, name, isOwner, voting, votesLeft, pastRounds, tool } = store
 const sortedColumns = computed(() => [...columns.value].sort((a, b) => a.order - b.order))
 const votingLive = computed(() => voting.value.phase === 'voting')
-
-// live cursors: broadcast in board-content px (scroll- and zoom-independent),
-// measured against the scaled wrapper so every peer agrees on positions
-const boardEl = ref<HTMLElement | null>(null)
-const scaleEl = ref<HTMLElement | null>(null)
-function onBoardPointer(e: PointerEvent) {
-  const el = scaleEl.value
-  if (!el) return
-  const r = el.getBoundingClientRect()
-  store.setPointer((e.clientX - r.left) / zoom.value, (e.clientY - r.top) / zoom.value)
-}
-
-// ctrl/cmd + wheel zooms toward the cursor
-function onWheel(e: WheelEvent) {
-  if (!e.ctrlKey && !e.metaKey) return
-  e.preventDefault()
-  const el = boardEl.value
-  if (!el) return
-  const old = zoom.value
-  const next = Math.min(1.6, Math.max(0.4, old * Math.exp(-e.deltaY * 0.005)))
-  if (next === old) return
-  zoom.value = next
-  const k = next / old
-  const r = el.getBoundingClientRect()
-  const cx = e.clientX - r.left
-  const cy = e.clientY - r.top
-  nextTick(() => {
-    el.scrollLeft = (el.scrollLeft + cx) * k - cx
-    el.scrollTop = (el.scrollTop + cy) * k - cy
-  })
-}
-
-// hand tool: drag anywhere to pan the board
-function onPanStart(e: PointerEvent) {
-  const el = boardEl.value
-  if (!el || e.button !== 0) return
-  e.preventDefault()
-  const startX = e.clientX
-  const startY = e.clientY
-  const sl = el.scrollLeft
-  const st = el.scrollTop
-  const overlay = e.currentTarget as HTMLElement
-  overlay.setPointerCapture(e.pointerId)
-  const onMove = (ev: PointerEvent) => {
-    el.scrollLeft = sl - (ev.clientX - startX)
-    el.scrollTop = st - (ev.clientY - startY)
-  }
-  const onUp = () => {
-    overlay.removeEventListener('pointermove', onMove)
-    overlay.removeEventListener('pointerup', onUp)
-    overlay.removeEventListener('pointercancel', onUp)
-  }
-  overlay.addEventListener('pointermove', onMove)
-  overlay.addEventListener('pointerup', onUp)
-  overlay.addEventListener('pointercancel', onUp)
-}
 
 const panelOpen = ref(false)
 const showResults = ref(false)
@@ -107,21 +51,10 @@ function openInvite() {
 
 <template>
   <div class="room">
-    <main
-      ref="boardEl"
-      class="board"
-      :class="{ 'note-mode': tool === 'note' }"
-      @pointermove="onBoardPointer"
-      @pointerleave="store.setPointer(null)"
-      @wheel="onWheel"
-    >
-      <div ref="scaleEl" class="board-scale" :style="{ transform: `scale(${zoom})` }">
-        <RemoteCursors />
-        <BoardColumn v-for="col in sortedColumns" :key="col.id" :column="col" />
-        <AddColumn v-if="isOwner" />
-      </div>
+    <main class="board" :class="{ 'note-mode': tool === 'note', 'hand-mode': tool === 'hand' }">
+      <BoardColumn v-for="col in sortedColumns" :key="col.id" :column="col" />
+      <AddColumn v-if="isOwner" />
     </main>
-    <div v-if="tool === 'hand'" class="pan-overlay" @pointerdown="onPanStart" />
 
     <BoardToolbar />
 

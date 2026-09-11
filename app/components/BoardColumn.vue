@@ -7,11 +7,83 @@ const { dragOverColumn, isOwner } = store
 
 const displayCards = computed(() => store.cardsForColumn(props.column.id))
 const isTarget = computed(() => dragOverColumn.value === props.column.id)
+// while one of this column's notes is dragged, the canvas unclips so the
+// note stays visible on its way to another column
+const isDragSource = computed(() =>
+  !!store.draggingCardId.value && displayCards.value.some(c => c.id === store.draggingCardId.value))
 
-// canvas bounds for display-clamping notes (width is shared, height is local)
-const canvasEl = ref<HTMLElement | null>(null)
-const { height: canvasHeight } = useElementSize(canvasEl)
-const canvasWidth = computed(() => props.column.width - 24) // column padding
+// this viewer's window into the column's infinite canvas (pan px + zoom)
+const view = store.columnView(props.column.id)
+const viewMoved = computed(() => view.zoom !== 1 || view.x !== 0 || view.y !== 0)
+function resetView() {
+  view.zoom = 1
+  view.x = 0
+  view.y = 0
+}
+
+// screen point -> column-content coordinates
+function toContent(e: MouseEvent, el: HTMLElement) {
+  const r = el.getBoundingClientRect()
+  return {
+    x: (e.clientX - r.left - view.x) / view.zoom,
+    y: (e.clientY - r.top - view.y) / view.zoom,
+  }
+}
+
+// the dot grid is the zoom reference: it scales with zoom and slides with pan
+const gridStyle = computed(() => ({
+  backgroundSize: `${20 * view.zoom}px ${20 * view.zoom}px`,
+  backgroundPosition: `${view.x}px ${view.y}px`,
+}))
+
+// hand tool (or ctrl/cmd) + wheel zooms toward the cursor; plain wheel pans
+function onCanvasWheel(e: WheelEvent) {
+  e.preventDefault()
+  if (e.ctrlKey || e.metaKey || store.tool.value === 'hand') {
+    const old = view.zoom
+    const next = Math.min(2, Math.max(0.25, old * Math.exp(-e.deltaY * 0.005)))
+    if (next === old) return
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const cx = e.clientX - r.left
+    const cy = e.clientY - r.top
+    view.x = cx - ((cx - view.x) / old) * next
+    view.y = cy - ((cy - view.y) / old) * next
+    view.zoom = next
+  } else {
+    view.x -= e.deltaX
+    view.y -= e.deltaY
+  }
+}
+
+// hand tool: drag to pan within the column
+function onCanvasPointerDown(e: PointerEvent) {
+  if (store.tool.value !== 'hand' || e.button !== 0) return
+  e.preventDefault()
+  const canvas = e.currentTarget as HTMLElement
+  canvas.setPointerCapture(e.pointerId)
+  const sx = e.clientX
+  const sy = e.clientY
+  const ox = view.x
+  const oy = view.y
+  const onMove = (ev: PointerEvent) => {
+    view.x = ox + ev.clientX - sx
+    view.y = oy + ev.clientY - sy
+  }
+  const onUp = () => {
+    canvas.removeEventListener('pointermove', onMove)
+    canvas.removeEventListener('pointerup', onUp)
+    canvas.removeEventListener('pointercancel', onUp)
+  }
+  canvas.addEventListener('pointermove', onMove)
+  canvas.addEventListener('pointerup', onUp)
+  canvas.addEventListener('pointercancel', onUp)
+}
+
+// live cursor broadcast in column-content coordinates
+function onCanvasPointerMove(e: PointerEvent) {
+  const p = toContent(e, e.currentTarget as HTMLElement)
+  store.setPointer(props.column.id, p.x, p.y)
+}
 
 // title editing (host only)
 const editingTitle = ref(false)
@@ -27,26 +99,26 @@ function commitTitle() {
   editingTitle.value = false
 }
 
-// spawn a note at a canvas point (rect is screen px, positions are content px)
+// clicks on notes are theirs — only the canvas or its surface spawns
+function onEmptySpace(e: MouseEvent) {
+  const t = e.target as HTMLElement
+  return t.classList.contains('col-canvas') || t.classList.contains('canvas-surface')
+}
+
 function spawnAt(e: MouseEvent) {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const z = store.zoom.value
-  const x = Math.max(4, Math.min((e.clientX - rect.left) / z - 8, rect.width / z - 224))
-  const y = Math.max(4, Math.min((e.clientY - rect.top) / z - 8, rect.height / z - 90))
-  store.addCard(props.column.id, x, y)
+  const p = toContent(e, e.currentTarget as HTMLElement)
+  store.addCard(props.column.id, p.x - 8, p.y - 8)
 }
 
 // the note tool places one card, then hands back to the select tool
 function onCanvasClick(e: MouseEvent) {
-  if (store.tool.value !== 'note') return
-  if (e.target !== e.currentTarget) return // clicks on notes are theirs
+  if (store.tool.value !== 'note' || !onEmptySpace(e)) return
   spawnAt(e)
   store.tool.value = 'select'
 }
 
 function onCanvasDblClick(e: MouseEvent) {
-  if (store.tool.value !== 'select') return
-  if (e.target !== e.currentTarget) return
+  if (store.tool.value !== 'select' || !onEmptySpace(e)) return
   spawnAt(e)
 }
 
@@ -68,8 +140,7 @@ function onResizeStart(e: PointerEvent) {
   const handle = e.currentTarget as HTMLElement
   handle.setPointerCapture(e.pointerId)
   const onMove = (ev: PointerEvent) => {
-    // pointer deltas are screen px; column widths are board-content px
-    store.resizeColumn(props.column.id, startWidth + (ev.clientX - startX) / store.zoom.value)
+    store.resizeColumn(props.column.id, startWidth + (ev.clientX - startX))
   }
   const onUp = () => {
     resizing.value = false
@@ -86,7 +157,7 @@ function onResizeStart(e: PointerEvent) {
 <template>
   <section
     class="panel column"
-    :class="{ 'drop-target': isTarget, resizing }"
+    :class="{ 'drop-target': isTarget, resizing, 'drag-source': isDragSource }"
     :style="{ flex: `0 0 ${column.width}px`, width: `${column.width}px` }"
     :data-column-id="column.id"
   >
@@ -108,24 +179,31 @@ function onResizeStart(e: PointerEvent) {
         :title="isOwner ? 'Click to rename' : undefined"
         @click="beginTitle"
       >{{ column.title }}</h2>
+      <button
+        v-if="viewMoved"
+        class="view-reset"
+        title="Reset this column's view"
+        @click="resetView"
+      >{{ Math.round(view.zoom * 100) }}%</button>
       <span class="col-count">{{ displayCards.length }}</span>
       <button v-if="isOwner" class="icon-btn" title="Delete column" @click="removeColumn"><Icon name="lucide:x" /></button>
     </header>
 
     <div
-      ref="canvasEl"
       class="col-canvas"
       title="Double-click to add a card"
+      :style="gridStyle"
       @click="onCanvasClick"
       @dblclick="onCanvasDblClick"
+      @wheel="onCanvasWheel"
+      @pointerdown="onCanvasPointerDown"
+      @pointermove="onCanvasPointerMove"
+      @pointerleave="store.setPointer(null)"
     >
-      <BoardCard
-        v-for="card in displayCards"
-        :key="card.id"
-        :card="card"
-        :canvas-width="canvasWidth"
-        :canvas-height="canvasHeight"
-      />
+      <div class="canvas-surface" :style="{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }">
+        <RemoteCursors :column-id="column.id" :zoom="view.zoom" />
+        <BoardCard v-for="card in displayCards" :key="card.id" :card="card" />
+      </div>
     </div>
 
     <div

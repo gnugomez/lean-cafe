@@ -31,6 +31,8 @@ export interface ParticipantItem {
 export interface RemotePointer {
   id: string
   name: string
+  /** column whose canvas the cursor is over; coordinates are that column's content px */
+  col: string
   x: number
   y: number
 }

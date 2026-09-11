@@ -408,17 +408,18 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .tool-btn:hover { background: var(--surface-2); }
 .tool-btn.active { background: var(--ink); color: #fff; }
-.zoom-label {
+/* per-column zoom indicator in the column header */
+.view-reset {
   border: 0;
   background: none;
-  min-width: 2.5rem;
-  text-align: center;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
-.zoom-label:hover { color: var(--ink); }
+.view-reset:hover { color: var(--ink); background: var(--surface-2); }
 .invite-input { width: 15rem; padding: 0.3125rem 0.5rem; font-size: 0.8125rem; }
 
 /* board menu under the logo (export/import, back to start) */
@@ -507,37 +508,26 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .sp-link:hover { color: var(--ink); }
 
 /* ---------- board & columns ---------- */
-/* px on purpose: remote-cursor coordinates are shared in board-box pixels
-   (RoomBoard.vue), so board padding/gap must not vary with the viewer's
-   root font size. Top padding clears the floating islands. */
+/* px on purpose: board geometry is layout for shared column widths — keep it
+   stable across viewers. Top padding clears the floating islands. */
 .board {
   position: relative;
   flex: 1;
   min-height: 0;
-  padding: 68px 12px 20px;
-  overflow: auto;
-  /* own stacking context: note z-indexes never rise above islands/dialogs */
-  z-index: 0;
-}
-/* the zoomable surface — columns lay out at content px, the transform scales the view */
-.board-scale {
-  position: relative;
   display: flex;
   align-items: stretch;
   gap: 14px;
-  min-height: 100%;
-  min-width: 100%;
-  width: max-content;
-  transform-origin: 0 0;
+  padding: 68px 12px 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* own stacking context: note z-indexes never rise above islands/dialogs */
+  z-index: 0;
 }
 .board.note-mode .col-canvas { cursor: crosshair; }
-.pan-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5; /* above the board, below the islands */
-  cursor: grab;
-}
-.pan-overlay:active { cursor: grabbing; }
+.board.hand-mode .col-canvas { cursor: grab; }
+.board.hand-mode .col-canvas:active { cursor: grabbing; }
+/* the hand tool owns the pointer — notes don't react while panning */
+.board.hand-mode .card { pointer-events: none; }
 
 /* live cursors of other participants */
 .remote-cursor {
@@ -622,16 +612,27 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: var(--radius-pill);
   padding: 0.0625rem 0.5rem;
 }
-/* the whiteboard: notes live at free positions inside it */
+/* the whiteboard: a viewport into the column's infinite canvas */
 .col-canvas {
   position: relative;
   flex: 1;
   min-height: 8.75rem;
   border-radius: var(--radius-md);
-  /* faint dot grid inside the board too */
+  overflow: hidden;
+  /* the dot grid is the zoom/pan reference — size and position follow the
+     view (inline styles from BoardColumn) */
   background-image: radial-gradient(circle, #ececef 1px, transparent 1.3px);
   background-size: 20px 20px;
 }
+/* the pannable/zoomable surface where notes live at content coordinates */
+.canvas-surface {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+/* a note dragged out of its column stays visible above the other columns */
+.column.drag-source .col-canvas { overflow: visible; }
+.column.drag-source .canvas-surface { z-index: 1000; }
 .add-column-btn {
   border-style: dashed;
   border-color: var(--border-strong);

@@ -7,7 +7,7 @@ export function useNoteDrag(opts: {
   canDrag?: () => boolean
 }) {
   const store = useRoomStore()
-  const { draggingCardId, dragOverColumn, zoom } = store
+  const { draggingCardId, dragOverColumn } = store
 
   const dragging = ref(false)
   const dx = ref(0)
@@ -76,9 +76,10 @@ export function useNoteDrag(opts: {
       dragging.value = true
       draggingCardId.value = opts.card().id
     }
-    // pointer deltas are screen px; the note translates inside the zoomed board
-    dx.value = mx / zoom.value
-    dy.value = my / zoom.value
+    // pointer deltas are screen px; the note translates inside its column's zoomed canvas
+    const z = store.columnView(opts.card().columnId).zoom
+    dx.value = mx / z
+    dy.value = my / z
     // highlight only a column the card would move into, not its own
     const overId = columnAt(e.clientX, e.clientY)?.dataset.columnId ?? null
     dragOverColumn.value = overId !== opts.card().columnId ? overId : null
@@ -97,11 +98,12 @@ export function useNoteDrag(opts: {
     const colId = targetCol?.dataset.columnId || card.columnId
     const canvas = (targetCol || el.closest('[data-column-id]'))?.querySelector('.col-canvas')
     if (!canvas) return
-    // rects are screen px (scaled); stored positions are board-content px
-    const z = zoom.value
+    // rects are screen px; convert through the TARGET column's view into its
+    // content coordinates — the canvas is infinite, so no clamping
+    const v = store.columnView(colId)
     const cRect = canvas.getBoundingClientRect()
-    const x = Math.max(4, Math.min((noteRect.left - cRect.left) / z, (cRect.width - noteRect.width) / z - 4))
-    const y = Math.max(4, Math.min((noteRect.top - cRect.top) / z, (cRect.height - noteRect.height) / z - 4))
+    const x = (noteRect.left - cRect.left - v.x) / v.zoom
+    const y = (noteRect.top - cRect.top - v.y) / v.zoom
     store.moveNote(card.id, colId, x, y)
   }
 
