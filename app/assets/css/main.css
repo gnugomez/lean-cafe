@@ -292,11 +292,17 @@ button { font: inherit; cursor: pointer; color: inherit; }
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  /* centred rows, so one board on its own sits under the hero instead of
+     hugging the left edge of an empty grid */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.75rem;
 }
 .session-card {
+  /* grows to fill its row, but never wider than a board preview needs */
+  flex: 1 1 13rem;
+  max-width: 15rem;
   position: relative;
   padding: 0.5rem;
   display: flex;
@@ -1239,6 +1245,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   .island { gap: var(--gap-sm); }
   .island-right { max-width: calc(100vw - 6rem); flex-wrap: wrap; }
   .hero { padding: 2rem 1.5rem; }
-  .session-grid { grid-template-columns: 1fr; }
+  .session-card { max-width: none; }
   .session-forget { opacity: 1; }
 }

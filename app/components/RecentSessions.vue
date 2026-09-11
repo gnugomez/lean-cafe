@@ -65,16 +65,16 @@ function statsLabel(p: SessionPreview | undefined) {
           <span class="session-stats">{{ statsLabel(previews[s.code]) }}</span>
           <div v-if="previews[s.code]?.people.length" class="avatars">
             <span
-              v-for="p in previews[s.code]!.people.slice(0, 4)"
+              v-for="p in previews[s.code]!.people.slice(0, 3)"
               :key="p.id"
               class="avatar"
               :style="{ background: p.color }"
               :title="p.name"
             >{{ initialsOf(p.name) }}</span>
             <span
-              v-if="previews[s.code]!.people.length > 4"
+              v-if="previews[s.code]!.people.length > 3"
               class="avatar more"
-            >+{{ previews[s.code]!.people.length - 4 }}</span>
+            >+{{ previews[s.code]!.people.length - 3 }}</span>
           </div>
         </div>
         <button class="icon-btn session-forget" title="Forget this board" @click="confirming = s.code">
