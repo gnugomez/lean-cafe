@@ -895,16 +895,22 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .sticker-cell {
   border: 0;
-  padding: 0;
+  padding: 0.1875rem;
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
-  display: grid;
-  place-items: center;
+  display: block;
   overflow: hidden;
 }
 .sticker-cell:hover { box-shadow: 0 0 0 2px var(--ink); }
-.sticker-cell img { max-width: 100%; max-height: 100%; display: block; }
+/* contain, not max-height: the cell's height comes from aspect-ratio, which
+   percentages can't resolve against — tall stickers would overflow and clip */
+.sticker-cell img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .sticker-note {
   margin: 0;
   padding: 1rem 0.25rem;
