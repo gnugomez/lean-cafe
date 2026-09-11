@@ -63,14 +63,22 @@ useIntersectionObserver(sentinel, ([entry]) => {
 
 <template>
   <div class="panel sticker-pop">
-    <input
-      v-model="query"
-      class="input sticker-search"
-      type="search"
-      placeholder="Search stickers…"
-      maxlength="100"
-      autofocus
-    >
+    <div class="sticker-field">
+      <input
+        v-model="query"
+        class="input sticker-search"
+        type="search"
+        placeholder="Search stickers…"
+        maxlength="100"
+        autofocus
+      >
+      <button
+        v-if="query"
+        class="icon-btn sticker-clear"
+        title="Clear search"
+        @click="query = ''"
+      ><Icon name="lucide:x" /></button>
+    </div>
     <!-- fixed height: results swap in place instead of collapsing the popover -->
     <div class="sticker-body" :class="{ 'fade-top': !arrivedState.top, 'fade-bottom': !arrivedState.bottom }">
       <p v-if="error && !items.length" class="sticker-note">{{ error }}</p>
