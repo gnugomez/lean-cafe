@@ -6,6 +6,7 @@ import { createRoomConnection } from './room/connection'
 import { createRoomColumns, seedDefaultColumns } from './room/columns'
 import { createRoomCards } from './room/cards'
 import { createRoomVoting } from './room/voting'
+import { createRoomTransfer } from './room/transfer'
 
 export type {
   CardItem, ColumnItem, ParticipantItem, RemotePointer,
@@ -113,6 +114,10 @@ export function createRoomStore(code: string, roomName: string) {
     code, doc, metaMap, votesMap, historyMap,
     cards, votes, history, voting, sharedViewRound, isOwner,
   })
+  const transferApi = createRoomTransfer({
+    code, doc, metaMap, columnsMap, cardsMap, votesMap, historyMap,
+    columns, cards, history, voting, isOwner,
+  })
 
   const participants = computed<ParticipantItem[]>(() =>
     onlineIds.value.map(id => ({
@@ -189,6 +194,7 @@ export function createRoomStore(code: string, roomName: string) {
     ...columnsApi,
     ...cardsApi,
     ...votingApi,
+    ...transferApi,
   }
 }
 

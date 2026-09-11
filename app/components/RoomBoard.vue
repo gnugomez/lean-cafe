@@ -20,6 +20,17 @@ function onBoardPointer(e: PointerEvent) {
   store.setPointer(e.clientX - r.left + el.scrollLeft, e.clientY - r.top + el.scrollTop)
 }
 
+// board export/import (import is host-only; transfer.ts guards it too)
+const importInput = ref<HTMLInputElement | null>(null)
+async function onImportPicked(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // so picking the same file again re-triggers change
+  if (!file) return
+  const error = await store.importBoard(file)
+  if (error) window.alert(error)
+}
+
 const showNameEdit = ref(false)
 const copied = ref(false)
 async function copyLink() {
@@ -43,6 +54,20 @@ async function copyLink() {
       <div class="spacer" />
       <TimerWidget />
       <VotingPanel />
+      <div class="chip-group">
+        <button class="group-btn" title="Download this board as a JSON file" @click="store.exportBoard()">
+          <Icon name="lucide:download" />
+        </button>
+        <button
+          v-if="isOwner"
+          class="group-btn"
+          title="Import a board file — replaces this board for everyone"
+          @click="importInput?.click()"
+        >
+          <Icon name="lucide:upload" />
+        </button>
+      </div>
+      <input ref="importInput" type="file" accept=".json,application/json" hidden @change="onImportPicked">
       <button
         v-if="isOwner"
         class="chip"
