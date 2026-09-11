@@ -518,7 +518,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .board.note-mode .col-canvas { cursor: crosshair; }
 .board.hand-mode .col-canvas { cursor: grab; }
-.board.hand-mode .col-canvas:active { cursor: grabbing; }
+.board.hand-mode .col-canvas:active,
+.col-canvas.panning { cursor: grabbing; }
 /* the hand tool owns the pointer — notes don't react while panning */
 .board.hand-mode .card { pointer-events: none; }
 

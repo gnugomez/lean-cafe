@@ -65,10 +65,14 @@ function onCanvasWheel(e: WheelEvent) {
   }
 }
 
-// select tool: drag on empty space draws a marquee (canvas px); hand tool pans
+// select tool: drag on empty space draws a marquee (canvas px); hand tool and
+// middle-click pan
 const marquee = ref<{ x: number, y: number, w: number, h: number } | null>(null)
+const panning = ref(false)
 
 function onCanvasPointerDown(e: PointerEvent) {
+  // middle-click drags the canvas around whatever tool is active
+  if (e.button === 1) return startPan(e)
   if (e.button !== 0) return
   if (store.tool.value === 'hand') return startPan(e)
   if (!onEmptySpace(e)) return
@@ -77,7 +81,8 @@ function onCanvasPointerDown(e: PointerEvent) {
 }
 
 function startPan(e: PointerEvent) {
-  e.preventDefault()
+  e.preventDefault() // also suppresses the browser's middle-click autoscroll
+  panning.value = true
   const canvas = e.currentTarget as HTMLElement
   canvas.setPointerCapture(e.pointerId)
   const sx = e.clientX
@@ -89,6 +94,7 @@ function startPan(e: PointerEvent) {
     view.y = oy + ev.clientY - sy
   }
   const onUp = () => {
+    panning.value = false
     canvas.removeEventListener('pointermove', onMove)
     canvas.removeEventListener('pointerup', onUp)
     canvas.removeEventListener('pointercancel', onUp)
@@ -350,8 +356,10 @@ function onResizeStart(e: PointerEvent) {
 
     <div
       class="col-canvas"
+      :class="{ panning }"
       title="Double-click to add a card"
       :style="gridStyle"
+      @auxclick.prevent
       @click="onCanvasClick"
       @dblclick="onCanvasDblClick"
       @wheel="onCanvasWheel"
