@@ -570,8 +570,10 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-resize {
   position: absolute;
   top: 0;
-  /* spans the 14px board gap, so the line centers between the columns */
-  right: -14px;
+  /* spans the 14px board gap exactly, so the line centers between the columns;
+     the extra 1px offsets the panel border (absolute `right` measures from the
+     padding box, 1px inside the visual edge) */
+  right: -15px;
   width: 14px;
   height: 100%;
   cursor: col-resize;
