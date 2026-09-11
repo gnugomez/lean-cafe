@@ -10,6 +10,10 @@ const items = ref<Sticker[]>([])
 const pending = ref(true)
 const error = ref('')
 
+// fade the grid edges only where there is more to scroll to
+const gridEl = ref<HTMLElement | null>(null)
+const { arrivedState } = useScroll(gridEl)
+
 // searches race (debounced typing, slow trending): only the newest one lands
 let seq = 0
 async function load() {
@@ -45,19 +49,22 @@ onMounted(load)
       maxlength="100"
       autofocus
     >
-    <p v-if="error" class="sticker-note">{{ error }}</p>
-    <p v-else-if="pending" class="sticker-note">Loading…</p>
-    <p v-else-if="!items.length" class="sticker-note">
-      {{ query.trim() ? `No stickers for “${query.trim()}”.` : 'No stickers right now.' }}
-    </p>
-    <div v-else class="sticker-grid">
-      <button
-        v-for="s in items"
-        :key="s.id"
-        class="sticker-cell"
-        title="Pick this sticker"
-        @click="emit('pick', s)"
-      ><img :src="s.preview" alt="" loading="lazy" draggable="false"></button>
+    <!-- fixed height: results swap in place instead of collapsing the popover -->
+    <div class="sticker-body" :class="{ 'fade-top': !arrivedState.top, 'fade-bottom': !arrivedState.bottom }">
+      <p v-if="error" class="sticker-note">{{ error }}</p>
+      <p v-else-if="pending" class="sticker-note">Loading…</p>
+      <p v-else-if="!items.length" class="sticker-note">
+        {{ query.trim() ? `No stickers for “${query.trim()}”.` : 'No stickers right now.' }}
+      </p>
+      <div v-else ref="gridEl" class="sticker-grid">
+        <button
+          v-for="s in items"
+          :key="s.id"
+          class="sticker-cell"
+          title="Pick this sticker"
+          @click="emit('pick', s)"
+        ><img :src="s.preview" alt="" loading="lazy" draggable="false"></button>
+      </div>
     </div>
     <p class="sticker-hint">Wheel resizes, shift+wheel rotates. Click the board or a card to stamp.</p>
   </div>
