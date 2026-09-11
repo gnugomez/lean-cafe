@@ -579,8 +579,8 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .col-resize::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--radius-lg); /* stop short of the panel's rounded corners */
+  bottom: var(--radius-lg);
   left: 50%;
   transform: translateX(-50%); /* centered on the column border */
   width: 3px;
