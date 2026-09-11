@@ -805,9 +805,9 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .card-foot {
   position: relative;
-  /* above card stickers, so a reaction never covers the author or the
-     vote/edit/delete controls */
-  z-index: 1002;
+  /* above every sticker layer (1001, 1002 while hovered), so a reaction never
+     covers or blocks the author, votes, edit or delete */
+  z-index: 1003;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -861,8 +861,9 @@ button { font: inherit; cursor: pointer; color: inherit; }
 /* only the select tool touches stickers; the remove button appears on hover */
 .board.select-mode .sticker { pointer-events: auto; }
 /* lift the hovered sticker over its neighbours — each sticker is its own
-   stacking context, so otherwise an overlapping one buries this ✕ */
-.board.select-mode .sticker:hover { z-index: 1003; }
+   stacking context, so otherwise an overlapping one buries this ✕. Stays
+   below .card-foot, which owns the voting and edit controls. */
+.board.select-mode .sticker:hover { z-index: 1002; }
 .sticker-del {
   position: absolute;
   top: -0.4375rem;
