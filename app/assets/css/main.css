@@ -854,10 +854,14 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .sticker-img { display: block; width: 100%; height: auto; }
 /* only the select tool touches stickers; the remove button appears on hover */
 .board.select-mode .sticker { pointer-events: auto; }
+/* lift the hovered sticker over its neighbours — each sticker is its own
+   stacking context, so otherwise an overlapping one buries this ✕ */
+.board.select-mode .sticker:hover { z-index: 1003; }
 .sticker-del {
   position: absolute;
   top: -0.4375rem;
   right: -0.4375rem;
+  z-index: 1; /* above this sticker's own image */
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-crisp);
