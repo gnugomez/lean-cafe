@@ -16,7 +16,7 @@ function cursorColor(id: string) {
   <div
     v-for="m in marquees"
     :key="`mq-${m.id}`"
-    class="marquee"
+    class="marquee remote"
     :style="{
       left: `${m.x}px`,
       top: `${m.y}px`,

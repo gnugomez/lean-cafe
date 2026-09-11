@@ -653,6 +653,10 @@ button { font: inherit; cursor: pointer; color: inherit; }
   border-radius: 2px;
   pointer-events: none;
 }
+/* peers' rectangles arrive throttled — interpolate like remote cursors do */
+.marquee.remote {
+  transition: left 0.08s linear, top 0.08s linear, width 0.08s linear, height 0.08s linear;
+}
 /* a note dragged out of its column stays visible above the other columns */
 .column.drag-source .col-canvas { overflow: visible; }
 .column.drag-source .canvas-surface { z-index: 1000; }
