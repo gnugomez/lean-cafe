@@ -29,15 +29,20 @@ watch(() => voting.value.phase, (phase, oldPhase) => {
 })
 
 const showNameEdit = ref(false)
-const copied = ref(false)
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(`${location.origin}/room/${props.code}`)
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 1500)
-  } catch {
-    // clipboard unavailable (insecure context) or write denied — don't claim "Copied!"
-  }
+
+// invite: show the link selected in an input — clipboard access can be
+// blocked, so the visible selection is the affordance; copy is best-effort
+const inviteOpen = ref(false)
+const inviteInput = ref<HTMLInputElement | null>(null)
+// the room route is client-only, so location is available
+const inviteLink = computed(() => `${location.origin}/room/${props.code}`)
+function openInvite() {
+  inviteOpen.value = true
+  navigator.clipboard?.writeText(inviteLink.value).catch(() => {})
+  nextTick(() => {
+    inviteInput.value?.focus()
+    inviteInput.value?.select()
+  })
 }
 </script>
 
@@ -55,10 +60,8 @@ async function copyLink() {
     </main>
 
     <div class="island island-left">
-      <NuxtLink to="/" class="brand" title="Lean Café">☕</NuxtLink>
-      <button class="room-code" :title="copied ? 'Copied!' : 'Copy invite link'" @click="copyLink">
-        {{ code }}
-      </button>
+      <RoomMenu />
+      <span class="room-code" title="Room code">{{ code }}</span>
     </div>
 
     <div class="island island-right">
@@ -75,22 +78,23 @@ async function copyLink() {
         title="Round results"
         @click="showResults = true"
       ><Icon name="lucide:trophy" /></button>
-      <ParticipantChips />
-      <button class="self-btn" title="Change your name" @click="showNameEdit = true">
-        <span class="avatar" :class="{ host: isOwner }" :style="{ background: store.colorOf(store.uid) }">
-          {{ initialsOf(name || 'Anonymous') }}
-        </span>
-        <Icon name="lucide:chevron-down" />
-      </button>
+      <ParticipantChips @rename="showNameEdit = true" />
       <button
         class="icon-btn"
         :class="{ active: panelOpen }"
-        title="Timer, voting & board"
+        title="Timer, voting & authors"
         @click="panelOpen = !panelOpen"
       ><Icon name="lucide:sliders-horizontal" /></button>
-      <button class="btn btn-primary btn-sm" @click="copyLink">
-        {{ copied ? 'Copied!' : 'Invite' }}
-      </button>
+      <input
+        v-if="inviteOpen"
+        ref="inviteInput"
+        class="input invite-input"
+        readonly
+        :value="inviteLink"
+        @blur="inviteOpen = false"
+        @keydown.esc="inviteOpen = false"
+      >
+      <button v-else class="btn btn-primary btn-sm" @click="openInvite">Invite</button>
       <SessionPanel
         v-if="panelOpen"
         @close="panelOpen = false"

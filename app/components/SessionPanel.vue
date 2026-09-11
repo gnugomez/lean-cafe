@@ -17,17 +17,6 @@ function startTimer() {
   if (minutes.value > 0) store.startTimer(Math.round(minutes.value * 60))
 }
 
-// board import (host-only; transfer.ts guards it too)
-const importInput = ref<HTMLInputElement | null>(null)
-async function onImportPicked(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = '' // so picking the same file again re-triggers change
-  if (!file) return
-  const error = await store.importBoard(file)
-  if (error) window.alert(error)
-}
-
 const panelEl = ref<HTMLElement | null>(null)
 // clicks on the island (the toggle, live chips) manage the panel themselves
 onClickOutside(panelEl, () => emit('close'), { ignore: ['.island-right'] })
@@ -88,31 +77,15 @@ onKeyStroke('Escape', () => emit('close'))
       </button>
     </section>
 
-    <section class="sp-section">
-      <h3 class="sp-title">Board</h3>
-      <div class="sp-row sp-actions">
-        <button
-          v-if="isOwner"
-          class="btn btn-sm"
-          :title="hideAuthors ? 'Author names are hidden from everyone' : 'Hide author names from everyone'"
-          @click="store.toggleAuthors()"
-        >
+    <section v-if="isOwner" class="sp-section">
+      <h3 class="sp-title">Authors</h3>
+      <div class="sp-row">
+        <p class="sp-muted">{{ hideAuthors ? 'Names are hidden on cards.' : 'Names are shown on cards.' }}</p>
+        <button class="btn btn-sm" @click="store.toggleAuthors()">
           <Icon :name="hideAuthors ? 'lucide:eye' : 'lucide:eye-off'" />
-          {{ hideAuthors ? 'Show authors' : 'Hide authors' }}
-        </button>
-        <button class="btn btn-sm" title="Download this board as a JSON file" @click="store.exportBoard()">
-          <Icon name="lucide:download" /> Export
-        </button>
-        <button
-          v-if="isOwner"
-          class="btn btn-sm"
-          title="Import a board file — replaces this board for everyone"
-          @click="importInput?.click()"
-        >
-          <Icon name="lucide:upload" /> Import
+          {{ hideAuthors ? 'Show' : 'Hide' }}
         </button>
       </div>
-      <input ref="importInput" type="file" accept=".json,application/json" hidden @change="onImportPicked">
     </section>
   </div>
 </template>

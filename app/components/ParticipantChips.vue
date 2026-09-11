@@ -1,24 +1,25 @@
 <script setup lang="ts">
+const emit = defineEmits<{ rename: [] }>()
 const store = useRoomStore()
 const { participants } = store
-// you are shown separately (the rename button on the island)
-const others = computed(() => participants.value.filter(p => !p.isSelf))
-const shown = computed(() => others.value.slice(0, 6))
-const extra = computed(() => others.value.length - shown.value.length)
+const shown = computed(() => participants.value.slice(0, 6))
+const extra = computed(() => participants.value.length - shown.value.length)
 </script>
 
 <template>
   <div class="avatars">
-    <span
+    <component
+      :is="p.isSelf ? 'button' : 'span'"
       v-for="p in shown"
       :key="p.id"
       class="avatar"
-      :class="{ host: p.isOwner }"
+      :class="{ host: p.isOwner, self: p.isSelf }"
       :style="{ background: p.color }"
-      :title="p.name + (p.isOwner ? ' (host)' : '') + (p.isSelf ? ' — you' : '')"
+      :title="p.name + (p.isOwner ? ' (host)' : '') + (p.isSelf ? ' — you · click to rename' : '')"
+      @click="p.isSelf && emit('rename')"
     >
       {{ initialsOf(p.name) }}
-    </span>
+    </component>
     <span v-if="extra > 0" class="avatar more" :title="`${extra} more`">+{{ extra }}</span>
   </div>
 </template>
