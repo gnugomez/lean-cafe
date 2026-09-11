@@ -20,7 +20,8 @@ const { x: mouseX, y: mouseY } = useMouse({ type: 'client' })
 function onBoardWheel(e: WheelEvent) {
   if (e.defaultPrevented || !armedSticker.value) return
   e.preventDefault()
-  store.adjustArmedSticker(e.deltaY, e.shiftKey)
+  // shift+wheel arrives on the horizontal axis (browsers remap it)
+  store.adjustArmedSticker(e.deltaY || e.deltaX, e.shiftKey)
 }
 
 const panelOpen = ref(false)

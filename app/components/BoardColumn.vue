@@ -42,9 +42,11 @@ const gridStyle = computed(() => ({
 // hand tool (or ctrl/cmd) + wheel zooms toward the cursor; plain wheel pans
 function onCanvasWheel(e: WheelEvent) {
   e.preventDefault()
-  // an armed sticker owns the wheel: resize it (shift: rotate), never pan/zoom
+  // an armed sticker owns the wheel: resize it (shift: rotate), never pan/zoom.
+  // Browsers turn shift+wheel into horizontal scrolling, so the value lands in
+  // deltaX — take whichever axis moved.
   if (store.armedSticker.value) {
-    store.adjustArmedSticker(e.deltaY, e.shiftKey)
+    store.adjustArmedSticker(e.deltaY || e.deltaX, e.shiftKey)
     return
   }
   if (e.ctrlKey || e.metaKey || store.tool.value === 'hand') {
@@ -347,6 +349,7 @@ function onResizeStart(e: PointerEvent) {
       class="col-canvas"
       title="Double-click to add a card"
       :style="gridStyle"
+      @click="onCanvasClick"
       @dblclick="onCanvasDblClick"
       @wheel="onCanvasWheel"
       @pointerdown="onCanvasPointerDown"
