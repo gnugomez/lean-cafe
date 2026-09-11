@@ -934,7 +934,10 @@ button { font: inherit; cursor: pointer; color: inherit; }
   display: block;
   overflow: hidden;
 }
-.sticker-cell:hover { box-shadow: 0 0 0 2px var(--ink); }
+/* inset ring: an outer one would be clipped by the grid's own overflow */
+.sticker-cell:hover { box-shadow: inset 0 0 0 2px var(--ink); }
+/* plain blocks while a page loads */
+.sticker-cell.skeleton { background: var(--surface-2); cursor: default; }
 /* contain, not max-height: the cell's height comes from aspect-ratio, which
    percentages can't resolve against — tall stickers would overflow and clip */
 .sticker-cell img {
