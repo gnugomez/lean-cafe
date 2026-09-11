@@ -158,6 +158,10 @@ export function createRoomStore(code: string, roomName: string) {
   const draggingCardId = ref<string | null>(null)
   const dragOverColumn = ref<string | null>(null)
 
+  // view tools — local UI, never shared
+  const tool = ref<'select' | 'hand' | 'note'>('select')
+  const zoom = ref(1)
+
   function destroy() {
     connection.destroy()
     doc.destroy()
@@ -183,6 +187,8 @@ export function createRoomStore(code: string, roomName: string) {
     sharedViewRound,
     draggingCardId,
     dragOverColumn,
+    tool,
+    zoom,
     pointers,
     setPointer,
     connect,

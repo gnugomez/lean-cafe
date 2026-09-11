@@ -385,6 +385,40 @@ button { font: inherit; cursor: pointer; color: inherit; }
 }
 .icon-btn.active { background: var(--surface-2); color: var(--ink); }
 .votes-glance { font-variant-numeric: tabular-nums; }
+.island-sep { width: 1px; align-self: stretch; background: var(--border); }
+
+/* bottom tool dock */
+.tools-island {
+  top: auto;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 0.25rem;
+}
+.tool-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  font-size: 1rem;
+}
+.tool-btn:hover { background: var(--surface-2); }
+.tool-btn.active { background: var(--ink); color: #fff; }
+.zoom-label {
+  border: 0;
+  background: none;
+  min-width: 2.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.zoom-label:hover { color: var(--ink); }
 .invite-input { width: 15rem; padding: 0.3125rem 0.5rem; font-size: 0.8125rem; }
 
 /* board menu under the logo (export/import, back to start) */
@@ -480,13 +514,30 @@ button { font: inherit; cursor: pointer; color: inherit; }
   position: relative;
   flex: 1;
   min-height: 0;
+  padding: 68px 12px 20px;
+  overflow: auto;
+  /* own stacking context: note z-indexes never rise above islands/dialogs */
+  z-index: 0;
+}
+/* the zoomable surface — columns lay out at content px, the transform scales the view */
+.board-scale {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 14px;
-  padding: 68px 12px 20px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  min-height: 100%;
+  min-width: 100%;
+  width: max-content;
+  transform-origin: 0 0;
 }
+.board.note-mode .col-canvas { cursor: crosshair; }
+.pan-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5; /* above the board, below the islands */
+  cursor: grab;
+}
+.pan-overlay:active { cursor: grabbing; }
 
 /* live cursors of other participants */
 .remote-cursor {
@@ -581,7 +632,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   background-image: radial-gradient(circle, #ececef 1px, transparent 1.3px);
   background-size: 20px 20px;
 }
-.add-card-btn,
 .add-column-btn {
   border-style: dashed;
   border-color: var(--border-strong);
@@ -589,7 +639,6 @@ button { font: inherit; cursor: pointer; color: inherit; }
   color: var(--muted);
   font-weight: 600;
 }
-.add-card-btn:hover:not(:disabled),
 .add-column-btn:hover:not(:disabled) { color: var(--ink); background: var(--surface); }
 .add-column { flex: 0 0 280px; }
 .add-column-form { display: flex; gap: var(--gap-md); padding: 0.625rem; }

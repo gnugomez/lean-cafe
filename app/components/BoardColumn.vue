@@ -27,12 +27,27 @@ function commitTitle() {
   editingTitle.value = false
 }
 
-function onCanvasDblClick(e: MouseEvent) {
-  if (e.target !== e.currentTarget) return // clicks on notes are theirs
+// spawn a note at a canvas point (rect is screen px, positions are content px)
+function spawnAt(e: MouseEvent) {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const x = Math.max(4, Math.min(e.clientX - rect.left - 8, rect.width - 224))
-  const y = Math.max(4, Math.min(e.clientY - rect.top - 8, rect.height - 90))
+  const z = store.zoom.value
+  const x = Math.max(4, Math.min((e.clientX - rect.left) / z - 8, rect.width / z - 224))
+  const y = Math.max(4, Math.min((e.clientY - rect.top) / z - 8, rect.height / z - 90))
   store.addCard(props.column.id, x, y)
+}
+
+// the note tool places one card, then hands back to the select tool
+function onCanvasClick(e: MouseEvent) {
+  if (store.tool.value !== 'note') return
+  if (e.target !== e.currentTarget) return // clicks on notes are theirs
+  spawnAt(e)
+  store.tool.value = 'select'
+}
+
+function onCanvasDblClick(e: MouseEvent) {
+  if (store.tool.value !== 'select') return
+  if (e.target !== e.currentTarget) return
+  spawnAt(e)
 }
 
 function removeColumn() {
@@ -53,7 +68,8 @@ function onResizeStart(e: PointerEvent) {
   const handle = e.currentTarget as HTMLElement
   handle.setPointerCapture(e.pointerId)
   const onMove = (ev: PointerEvent) => {
-    store.resizeColumn(props.column.id, startWidth + (ev.clientX - startX))
+    // pointer deltas are screen px; column widths are board-content px
+    store.resizeColumn(props.column.id, startWidth + (ev.clientX - startX) / store.zoom.value)
   }
   const onUp = () => {
     resizing.value = false
@@ -100,6 +116,7 @@ function onResizeStart(e: PointerEvent) {
       ref="canvasEl"
       class="col-canvas"
       title="Double-click to add a card"
+      @click="onCanvasClick"
       @dblclick="onCanvasDblClick"
     >
       <BoardCard
@@ -110,8 +127,6 @@ function onResizeStart(e: PointerEvent) {
         :canvas-height="canvasHeight"
       />
     </div>
-
-    <button class="btn add-card-btn" @click="store.addCard(column.id)"><Icon name="lucide:plus" /> Add a card</button>
 
     <div
       v-if="isOwner"

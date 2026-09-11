@@ -7,7 +7,7 @@ export function useNoteDrag(opts: {
   canDrag?: () => boolean
 }) {
   const store = useRoomStore()
-  const { draggingCardId, dragOverColumn } = store
+  const { draggingCardId, dragOverColumn, zoom } = store
 
   const dragging = ref(false)
   const dx = ref(0)
@@ -76,8 +76,9 @@ export function useNoteDrag(opts: {
       dragging.value = true
       draggingCardId.value = opts.card().id
     }
-    dx.value = mx
-    dy.value = my
+    // pointer deltas are screen px; the note translates inside the zoomed board
+    dx.value = mx / zoom.value
+    dy.value = my / zoom.value
     // highlight only a column the card would move into, not its own
     const overId = columnAt(e.clientX, e.clientY)?.dataset.columnId ?? null
     dragOverColumn.value = overId !== opts.card().columnId ? overId : null
@@ -96,9 +97,11 @@ export function useNoteDrag(opts: {
     const colId = targetCol?.dataset.columnId || card.columnId
     const canvas = (targetCol || el.closest('[data-column-id]'))?.querySelector('.col-canvas')
     if (!canvas) return
+    // rects are screen px (scaled); stored positions are board-content px
+    const z = zoom.value
     const cRect = canvas.getBoundingClientRect()
-    const x = Math.max(4, Math.min(noteRect.left - cRect.left, cRect.width - noteRect.width - 4))
-    const y = Math.max(4, Math.min(noteRect.top - cRect.top, cRect.height - noteRect.height - 4))
+    const x = Math.max(4, Math.min((noteRect.left - cRect.left) / z, (cRect.width - noteRect.width) / z - 4))
+    const y = Math.max(4, Math.min((noteRect.top - cRect.top) / z, (cRect.height - noteRect.height) / z - 4))
     store.moveNote(card.id, colId, x, y)
   }
 
